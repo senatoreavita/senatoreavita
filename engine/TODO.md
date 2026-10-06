@@ -9,13 +9,12 @@ Item numbers (#) map to the original task list.
 
 ## Excel output — finalise  ← THIS SPRINT
 - [ ] **#6** Input page finalised
-- [ ] **#6** Growth rates worksheet finalised
+- [ ] **#6** Growth-rates worksheet finalised
+- [ ] **#7** NPV of the options — **modelled into the Excel file**
+- [ ] **#8** Comparison of options — **comparison sheet in the Excel file**
 - [ ] **#9/#10** Single-scenario Excel export (client wants one scenario only)
 - [ ] **#9** Dashboard when exporting a single scenario
 - [ ] **#1** Embed company logo in the Excel export (upper tier, gated by access_tier)
-
-## Model / features
-- [ ] **#7** NPV of the options (compute in engine; feeds the comparison page)
 
 ## PDF export  (later — layout ~80% built in core/exports/pdf/)
 - [ ] **#12** Formal business-plan PDF — finalise sections

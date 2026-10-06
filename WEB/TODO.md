@@ -11,7 +11,6 @@ Item numbers (#) map to the original task list.
 - [ ] **#2** Separate the left-menu sections; add **Risk assessment** as its own section
 - [ ] **#3** Bring the **subsection buttons** (sub-navigation)
 - [ ] **#4** Subdivide the **Monte Carlo** section into subsections
-- [ ] **#8** **Comparison options page** (renders #7 NPV-of-options from the engine)
 - [ ] **#1** Company **logo upload** (upper tier, gated)
 - [ ] **#5** **UI review** pass
 
@@ -19,7 +18,9 @@ Item numbers (#) map to the original task list.
 
 ## Notes
 - **No financial calculations on the client side** — all numbers come from the
-  engine DTO (`/plan/compute`). The comparison page shows engine output only.
+  engine DTO (`/plan/compute`).
+- **#7 NPV of options** and **#8 comparison of options** are **Excel** deliverables
+  (modelled into the workbook), not UI — see `engine/TODO.md`.
 
 ## In progress
 
