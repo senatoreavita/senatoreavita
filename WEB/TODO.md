@@ -1,14 +1,25 @@
-# WEB — things to do
+# WEB — things to do (StartUPlan_Web)
 
-Tasks for the **StartUPlan_Web** app (Next.js front end).
-Write whatever needs doing here; I'll pick items up from this file.
+Next.js front end. See `../SPRINT.md` for the 3-day plan.
+Item numbers (#) map to the original task list.
 
 > Repo: `senatoreavita/StartUPlan_Web`
 
 ---
 
-## To do
+## UI structure  ← THIS SPRINT
+- [ ] **#2** Separate the left-menu sections; add **Risk assessment** as its own section
+- [ ] **#3** Bring the **subsection buttons** (sub-navigation)
+- [ ] **#4** Subdivide the **Monte Carlo** section into subsections
+- [ ] **#8** **Comparison options page** (renders #7 NPV-of-options from the engine)
+- [ ] **#1** Company **logo upload** (upper tier, gated)
+- [ ] **#5** **UI review** pass
 
+---
+
+## Notes
+- **No financial calculations on the client side** — all numbers come from the
+  engine DTO (`/plan/compute`). The comparison page shows engine output only.
 
 ## In progress
 
