@@ -3,6 +3,7 @@
 **Focus:** finalise the **Excel output** and the **UI**.
 **Deferred:** the PDF (layout already ~80% built; quicker to finish later).
 **Window:** 6–8 Oct 2026 (adjust as you go).
+**Optional parallel this week:** provision the Google Cloud runway — see `INFRA.md` (~20 min, no app code, de-risks deploy).
 
 Item numbers (#) map to the original task list.
 
