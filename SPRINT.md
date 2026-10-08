@@ -63,6 +63,28 @@ Item numbers (#) map to the original task list.
 
 ---
 
+## 9 Oct — Excel builder review follow-ups (engine)
+From the code-quality review of `core/exports/excel` (verdict **B+**; see the PDF
+`StartUPlan_Excel_Builder_Review.pdf`). Priority order:
+- [ ] **(bug)** Sanitize loan names written raw in `loans_sheet.py` (lines 297 / 655 / 727)
+      — formula-injection parity with every other writer (which already sanitize)
+- [ ] **(bug)** `loans_sheet.py:526` hardcodes `#Loans!` in the per-loan jump links —
+      breaks in FR/UK builds where the tab is localized; use `ws.title`
+- [ ] **(SSOT)** Collapse the duplicate frequency map (`loans_sheet.py:703`) into the
+      already-imported engine `PERIODS_PER_YEAR`
+- [ ] **(DRY)** Extract one shared scenario-stacking + label helper (removes the
+      copy-pasted idiom from 7 writers) and `_series_row` onto the builder
+- [ ] **(SSOT/theme)** Derive `declarative_builder.py:289` from `scenario_layout`;
+      promote scattered hex colors + `size=12` literals into the theme
+- [ ] **(cleanup, later)** Decompose the ~450-line `create_loans_sheet`; drop dead
+      `strict_declarative` param + `LayoutRegistry.create_parameter_named_ranges`
+
+> Items 1–3 are small, surgical and covered by the existing snapshot tests.
+> This is quality hardening, not a launch blocker — the two bugs are worth doing
+> before 1 Dec.
+
+---
+
 ## Later / backlog
 - [ ] Excel **Risk Assessment page** — static MC/sensitivity charts, fed by the
       UI's already-computed result (ties into #2)
