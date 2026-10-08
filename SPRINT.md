@@ -1,8 +1,8 @@
 # Sprint — Excel finalised ✓ · now the UI
 
-**Updated:** 8 Oct 2026
-**Focus now:** the **web UI** — Risk-assessment section, sub-navigation, Monte-Carlo
-sub-sections, logo upload, review pass.
+**Updated:** 8 Oct 2026 (eve)
+**Focus now:** the **web UI** — the left-menu restructure (#2/#3/#4) is **done**;
+remaining UI is **logo upload** (#1) + the **review pass** (#5).
 **Excel output:** the single-scenario export and the whole scenario model are
 **done** (see below). Only a finalise-pass on #6 and the #7/#8 "options" scope
 question remain on the engine.
@@ -30,12 +30,25 @@ Item numbers (#) map to the original task list.
 - [x] **Download a selected MC case** as a single-scenario Excel
 - [x] **Prudent default shapes** — revenue skews to decrease, costs skew to increase
 
+### Web UI (8 Oct — this session)
+- [x] **#2** Left-menu split into **Scenarios modelling** + **Risk assessment**
+      groups (Risk assessment is its own section; one source of truth)
+- [x] **#3** **Sub-section buttons** / sub-navigation — one `SECTION_SUBVIEWS`
+      config drives both the sidebar accordion and each section's in-section nav
+- [x] **#4** **Monte Carlo** subdivided — slim run bar, charts on top, a separate
+      **MC Cases** inspector; a built run persists for the session
+- [x] **FS Projections** subdivided (Income / Balance / Cash flow / Ratios)
+- [x] **Floating bottom nav** reworked (predictable toggle + hover-to-scroll arrows)
+- [x] **Pricing board**: feature list now **derived from the entitlement contract**;
+      upgrade pricing generalised (skip-tier upgrades credit what you paid)
+- [x] **Working Capital** + **Tax & Dividends** gated behind the FS entitlement
+      (reuse `financial_statements`; not added to the pricing board)
+- [x] Fixes: `/api/scenario-defaults` 401 (missing auth token); one shared
+      `authHeaders` helper (DRY)
+
 ---
 
 ## ← THIS SPRINT — the UI (web)
-- [ ] **#2** Separate the left-menu sections; add **Risk assessment** as its own section
-- [ ] **#3** **Sub-section buttons** (sub-navigation)
-- [ ] **#4** Subdivide the **Monte Carlo** section into sub-sections
 - [ ] **#1** Company **logo upload** (upper tier, gated) — UI
 - [ ] **#5** **UI review** pass
 
