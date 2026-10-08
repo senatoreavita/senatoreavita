@@ -1,42 +1,67 @@
-# 3-Day Sprint — finalise Excel output + UI
+# Sprint — Excel finalised ✓ · now the UI
 
-**Focus:** finalise the **Excel output** and the **UI**.
-**Deferred:** the PDF (layout already ~80% built; quicker to finish later).
-**Window:** 6–8 Oct 2026 (adjust as you go).
-**Optional parallel this week:** provision the Google Cloud runway — see `INFRA.md` (~20 min, no app code, de-risks deploy).
+**Updated:** 8 Oct 2026
+**Focus now:** the **web UI** — Risk-assessment section, sub-navigation, Monte-Carlo
+sub-sections, logo upload, review pass.
+**Excel output:** the single-scenario export and the whole scenario model are
+**done** (see below). Only a finalise-pass on #6 and the #7/#8 "options" scope
+question remain on the engine.
+**Deferred:** the PDFs (#12/#13) and the Italian export pass.
+**Optional parallel:** provision the Google Cloud runway — see `INFRA.md`.
 
 Item numbers (#) map to the original task list.
 
 ---
 
-## Day 1 — Excel model (engine)
-- [ ] **#6** Finalise the Excel **Input page**
-- [ ] **#6** Finalise the **Growth-rates worksheet**
-- [ ] **#7** **NPV of the options** — modelled into the Excel file
+## ✅ Done (merged to main)
 
-## Day 2 — Excel finish (engine)
-- [ ] **#8** **Comparison of options** — comparison sheet in the Excel file
-- [ ] **#9/#10** **Single-scenario Excel** export + **dashboard when one scenario only**
-- [ ] **#1** Embed the **company logo** in the Excel export (upper tier, gated)
+### Excel / engine
+- [x] **#9 / #10** Single-scenario Excel export — one chosen case, full model
+      (incl. depreciation + financial statements), **no up/down**, titled by the
+      case number
+- [x] Scenario **single source of truth** — levers flow UI → engine → Excel
+      (no client-side calc; the Excel matches the screen)
+- [x] IA scenario sheets (IA_B / IA_D / IA_U) + per-scenario depreciation +
+      residual-value fix
 
-## Day 3 — UI (web)
-- [ ] **#2** Separate the **left-menu sections** (add **Risk assessment**)
-- [ ] **#3** Bring the **subsection buttons**
-- [ ] **#4** Subdivide the **Monte Carlo** section into subsections
-- [ ] **#1** **Logo upload** UI (upper tier, gated)
-- [ ] **#5** **UI review** pass
+### Monte Carlo (beyond the original list)
+- [x] MC **config persisted** with the project (fresh each run; trials never stored)
+- [x] **Latin Hypercube** sampling — second "Run" button
+- [x] **Download a selected MC case** as a single-scenario Excel
+- [x] **Prudent default shapes** — revenue skews to decrease, costs skew to increase
 
 ---
 
-## Deferred / backlog
+## ← THIS SPRINT — the UI (web)
+- [ ] **#2** Separate the left-menu sections; add **Risk assessment** as its own section
+- [ ] **#3** **Sub-section buttons** (sub-navigation)
+- [ ] **#4** Subdivide the **Monte Carlo** section into sub-sections
+- [ ] **#1** Company **logo upload** (upper tier, gated) — UI
+- [ ] **#5** **UI review** pass
+
+## Excel — remaining (engine)
+- [ ] **#6** Finalise-pass on the **Input page** + **Growth-rates** worksheet
+      (verify vs checklist — both heavily reworked in the scenario work)
+- [ ] **#7 / #8** **NPV of options** + **comparison of options** — ⚠️ *confirm scope:*
+      the three scenarios (already compared in the IA sheets), or **alternative
+      project plans** compared side-by-side?
+- [ ] **#1** Embed company **logo** in the Excel export (upper tier, gated) — engine
+- [ ] **#9** Verify the **dashboard** view when only one scenario is active
+
+---
+
+## Later / backlog
+- [ ] Excel **Risk Assessment page** — static MC/sensitivity charts, fed by the
+      UI's already-computed result (ties into #2)
+- [ ] **"Save this case"** — persist a chosen MC case's levers as a scenario
+- [ ] **"Pin this run"** — optional fixed seed for a frozen report copy
 - [ ] **#11** Explore other options for a project
-- [ ] **#12** PDF — formal business plan (finalise the existing layout)
+- [ ] **#12** PDF — formal business plan (layout ~80% built)
 - [ ] **#13** PDF — explanatory business plan (variant)
 - [ ] Logo in the PDF (rolls in with #12/#13)
-- [ ] Italian (IT) translation pass for the exports (currently falls back to EN)
+- [ ] Italian (IT) export translation (currently falls back to EN)
 
 > Reminders:
-> - **#7 NPV of options** and **#8 comparison of options** are **modelled into the
->   Excel file** (engine), not the web UI.
 > - **No financial calculations on the client side** — the UI reads numbers from
 >   the engine DTO only.
+> - **#7 / #8** are **Excel** deliverables (engine), not the web UI.

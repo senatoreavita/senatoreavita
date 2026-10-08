@@ -23,7 +23,12 @@ Item numbers (#) map to the original task list.
   (modelled into the workbook), not UI — see `engine/TODO.md`.
 
 ## In progress
-
+_(nothing active)_
 
 ## Done
-
+- [x] Scenario levers = single source of truth (UI persists to project, sends to
+      engine for compute **and** export)
+- [x] Monte Carlo config persisted with the project (fresh each run)
+- [x] Latin Hypercube — second "Run" button
+- [x] Download a selected Monte Carlo case (single-scenario Excel)
+- [x] Prudent default MC distribution shapes (revenue down, costs up)
