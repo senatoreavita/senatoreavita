@@ -57,8 +57,14 @@ Item numbers (#) map to the original task list.
 ## Excel — remaining (engine)
 *Schedule: **#6 this week (wk 1)**, then the **Excel presentation workstream
 #14–#16 next week (wk 2 · 12–16 Oct)**.*
-- [ ] **#6** Finalise-pass on the **Input page** + **Growth-rates** worksheet
-      (verify vs checklist — both heavily reworked in the scenario work) · *wk 1*
+- [x] **#6** Finalise-pass on the **Input page** + **Growth-rates** worksheet
+      (verify vs checklist — both heavily reworked in the scenario work) · *wk 1* —
+      **done ✓**: 18/18 live-build checklist checks pass (reference integrity,
+      clamp parity `=MAX(-0.95,MIN(5.0, base + Inputs!lever))`, completeness,
+      free⊆premium subset, presentation) + 180 targeted tests green
+      (inputs / gr / scenario / numeric + UI↔Excel parity). No defects found;
+      aesthetic polish rolls into #15. Premium sample workbook shared for the
+      visual check.
 - [ ] **#14** Excel **charts** — native embedded charts across the model (e.g.
       revenue & EBITDA trend, cashflow, NPV / scenario cone, funding & debt),
       engine-generated from the sheet data (no client-side calc) · *wk 2*
