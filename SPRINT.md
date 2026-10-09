@@ -82,6 +82,11 @@ From the code-quality review of `core/exports/excel` (verdict **B+**; see the PD
       single consolidated **Driving Factors** row (`b94df72`) + `<ignoredErrors>`
       suppression for the residual "inconsistent formula" flag (`9c2c739`).
       Verified in a fresh export — links preserved, values unchanged, 155 tests green.
+- [x] **Stable "Loan ID" cell** — show the positional label (`L1`, `L2`, …) instead
+      of the engine's internal uuid, which regenerated each export because the web
+      client sends no loan id (it was the *only* diff between two identical exports) —
+      `4ef7b24`. Display-only; results unchanged. Two exports of one plan are now
+      byte-identical.
 
 ### Remaining (quality hardening — not launch blockers)
 - [x] **(DRY)** Shared `write_scenario_label` helper (replaced the copy-pasted
