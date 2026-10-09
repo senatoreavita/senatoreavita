@@ -55,15 +55,17 @@ Item numbers (#) map to the original task list.
 - [ ] **#5** **UI review** pass
 
 ## Excel — remaining (engine)
+*Schedule: **#6 this week (wk 1)**, then the **Excel presentation workstream
+#14–#16 next week (wk 2 · 12–16 Oct)**.*
 - [ ] **#6** Finalise-pass on the **Input page** + **Growth-rates** worksheet
-      (verify vs checklist — both heavily reworked in the scenario work)
+      (verify vs checklist — both heavily reworked in the scenario work) · *wk 1*
 - [ ] **#14** Excel **charts** — native embedded charts across the model (e.g.
       revenue & EBITDA trend, cashflow, NPV / scenario cone, funding & debt),
-      engine-generated from the sheet data (no client-side calc)
+      engine-generated from the sheet data (no client-side calc) · *wk 2*
 - [ ] **#15** Excel **design pass** — visual polish & consistency across every
-      sheet (typography, colour/theme, spacing, borders, print layout)
+      sheet (typography, colour/theme, spacing, borders, print layout) · *wk 2*
 - [ ] **#16** Excel **navigation dashboard** — a landing sheet with headline
-      KPIs + jump-links to every sheet (one entry point into the model)
+      KPIs + jump-links to every sheet (one entry point into the model) · *wk 2*
 - [ ] **#7 / #8** **NPV of options** + **comparison of options** — ⚠️ *confirm scope:*
       the three scenarios (already compared in the IA sheets), or **alternative
       project plans** compared side-by-side?
