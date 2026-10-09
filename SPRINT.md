@@ -57,11 +57,22 @@ Item numbers (#) map to the original task list.
 ## Excel — remaining (engine)
 - [ ] **#6** Finalise-pass on the **Input page** + **Growth-rates** worksheet
       (verify vs checklist — both heavily reworked in the scenario work)
+- [ ] **#14** Excel **charts** — native embedded charts across the model (e.g.
+      revenue & EBITDA trend, cashflow, NPV / scenario cone, funding & debt),
+      engine-generated from the sheet data (no client-side calc)
+- [ ] **#15** Excel **design pass** — visual polish & consistency across every
+      sheet (typography, colour/theme, spacing, borders, print layout)
+- [ ] **#16** Excel **navigation dashboard** — a landing sheet with headline
+      KPIs + jump-links to every sheet (one entry point into the model)
 - [ ] **#7 / #8** **NPV of options** + **comparison of options** — ⚠️ *confirm scope:*
       the three scenarios (already compared in the IA sheets), or **alternative
       project plans** compared side-by-side?
 - [ ] **#1** Embed company **logo** in the Excel export (upper tier, gated) — engine
-- [ ] **#9** Verify the **dashboard** view when only one scenario is active
+- [x] **#9** Verify the **dashboard** view when only one scenario is active —
+      done (web `dashboard_2026_10_09`, `995dd89`): the comparison table now
+      degrades to a single column when only Base is computed; fan chart / switch
+      / MC already handled it. No real path mis-rendered; this hardened the one
+      latent gap.
 
 ---
 
