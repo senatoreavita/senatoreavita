@@ -1,11 +1,13 @@
 # Sprint — Excel finalised ✓ · now the UI
 
-**Updated:** 8 Oct 2026 (eve)
+**Updated:** 9 Oct 2026
 **Focus now:** the **web UI** — the left-menu restructure (#2/#3/#4) is **done**;
 remaining UI is **logo upload** (#1) + the **review pass** (#5).
 **Excel output:** the single-scenario export and the whole scenario model are
-**done** (see below). Only a finalise-pass on #6 and the #7/#8 "options" scope
-question remain on the engine.
+**done**; the 9 Oct code-review bugs (loan-name sanitize, localized jump-links)
+and the income-statement green-triangle are **fixed** on `session_2026_10_09`
+(see the 9 Oct section). Only a finalise-pass on #6, the #7/#8 "options" scope
+question, and the remaining quality-hardening items remain on the engine.
 **Deferred:** the PDFs (#12/#13) and the Italian export pass.
 **Optional parallel:** provision the Google Cloud runway — see `INFRA.md`.
 
@@ -65,23 +67,29 @@ Item numbers (#) map to the original task list.
 
 ## 9 Oct — Excel builder review follow-ups (engine)
 From the code-quality review of `core/exports/excel` (verdict **B+**; see the PDF
-`StartUPlan_Excel_Builder_Review.pdf`). Priority order:
-- [ ] **(bug)** Sanitize loan names written raw in `loans_sheet.py` (lines 297 / 655 / 727)
-      — formula-injection parity with every other writer (which already sanitize)
-- [ ] **(bug)** `loans_sheet.py:526` hardcodes `#Loans!` in the per-loan jump links —
-      breaks in FR/UK builds where the tab is localized; use `ws.title`
-- [ ] **(SSOT)** Collapse the duplicate frequency map (`loans_sheet.py:703`) into the
-      already-imported engine `PERIODS_PER_YEAR`
+`StartUPlan_Excel_Builder_Review.pdf`). Work landed on `session_2026_10_09`.
+
+### Done ✓ (9 Oct · `session_2026_10_09`)
+- [x] **(bug)** Sanitize loan names written raw in `loans_sheet.py` — formula-injection
+      parity with every other writer — `e95dda8`
+- [x] **(bug)** Localized per-loan "→ View" jump-links — use `ws.title`, not a hardcoded
+      `#Loans!` (dangled in FR/UK builds) — `e95dda8`
+- [x] **(SSOT)** Collapse the duplicate frequency map into the engine's single
+      `PERIODS_PER_YEAR` — `e95dda8`
+- [x] Blank the fixed-rate **"Variable Rate / Ref"** placeholder (was a stray `-`,
+      the only leading-`-` text cell in the workbook) — `4df6c1a`
+- [x] **Income-statement finance-cost green triangle** — root-caused and cleared:
+      single consolidated **Driving Factors** row (`b94df72`) + `<ignoredErrors>`
+      suppression for the residual "inconsistent formula" flag (`9c2c739`).
+      Verified in a fresh export — links preserved, values unchanged, 155 tests green.
+
+### Remaining (quality hardening — not launch blockers)
 - [ ] **(DRY)** Extract one shared scenario-stacking + label helper (removes the
       copy-pasted idiom from 7 writers) and `_series_row` onto the builder
 - [ ] **(SSOT/theme)** Derive `declarative_builder.py:289` from `scenario_layout`;
       promote scattered hex colors + `size=12` literals into the theme
 - [ ] **(cleanup, later)** Decompose the ~450-line `create_loans_sheet`; drop dead
       `strict_declarative` param + `LayoutRegistry.create_parameter_named_ranges`
-
-> Items 1–3 are small, surgical and covered by the existing snapshot tests.
-> This is quality hardening, not a launch blocker — the two bugs are worth doing
-> before 1 Dec.
 
 ---
 
