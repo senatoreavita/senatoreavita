@@ -99,8 +99,11 @@ From the code-quality review of `core/exports/excel` (verdict **B+**; see the PD
   - [ ] *follow-up (optional):* hoist the remaining scattered per-sheet hex fills
         into the theme, and the leftover hardcoded `(2,10,18)` lever columns in
         `declarative_builder` — larger, lower value, higher churn
-- [ ] **(cleanup, later)** Decompose the ~450-line `create_loans_sheet`; drop dead
-      `strict_declarative` param + `LayoutRegistry.create_parameter_named_ranges`
+- [x] **(cleanup)** Decompose the ~450-line `create_loans_sheet` → `_write_loan_summary_block`
+      + `_write_loan_blocks` (orchestrator now ~249 lines); drop dead
+      `LayoutRegistry.create_parameter_named_ranges` — `92d9e9b`; byte-identical output.
+      *Kept* `strict_declarative`: not dead (8+ tests + a dedicated contract test rely on
+      it as a backward-compat shim).
 
 ---
 
