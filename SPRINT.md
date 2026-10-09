@@ -84,10 +84,16 @@ From the code-quality review of `core/exports/excel` (verdict **B+**; see the PD
       Verified in a fresh export — links preserved, values unchanged, 155 tests green.
 
 ### Remaining (quality hardening — not launch blockers)
-- [ ] **(DRY)** Extract one shared scenario-stacking + label helper (removes the
-      copy-pasted idiom from 7 writers) and `_series_row` onto the builder
-- [ ] **(SSOT/theme)** Derive `declarative_builder.py:289` from `scenario_layout`;
-      promote scattered hex colors + `size=12` literals into the theme
+- [x] **(DRY)** Shared `write_scenario_label` helper (replaced the copy-pasted
+      label block in 7 writers) + `ExcelBuilderSME.series_scenario_total_row`
+      single source (driving-factors / working-capital / cashflow delegate) —
+      `b646bf3`; proven byte-identical output
+- [x] **(SSOT/theme)** `declarative_builder` scenario banner now derives its
+      columns + labels from `scenario_layout`; `size=12` hoisted into
+      `ExcelStyleConfig.scenario_label_font_size` — `b646bf3`
+  - [ ] *follow-up (optional):* hoist the remaining scattered per-sheet hex fills
+        into the theme, and the leftover hardcoded `(2,10,18)` lever columns in
+        `declarative_builder` — larger, lower value, higher churn
 - [ ] **(cleanup, later)** Decompose the ~450-line `create_loans_sheet`; drop dead
       `strict_declarative` param + `LayoutRegistry.create_parameter_named_ranges`
 
