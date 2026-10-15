@@ -1,8 +1,10 @@
 # Sprint — Excel finalised ✓ · now the UI
 
-**Updated:** 9 Oct 2026
-**Focus now:** the **web UI** — the left-menu restructure (#2/#3/#4) is **done**;
-remaining UI is **logo upload** (#1) + the **review pass** (#5).
+**Updated:** 15 Oct 2026
+**Focus now (wk 2 · 12–16 Oct):** the **Excel presentation workstream** —
+**#14 charts done ✓** (14 Oct: 8-chart Summary dashboard + the KPI ratios board);
+**#15 design pass** + **#16 nav dashboard** in progress. In parallel on the web:
+**logo upload** (#1) + the **UI review pass** (#5).
 **Excel output:** the single-scenario export and the whole scenario model are
 **done**; the 9 Oct code-review bugs (loan-name sanitize, localized jump-links)
 and the income-statement green-triangle are **fixed** on `session_2026_10_09`
@@ -65,13 +67,23 @@ Item numbers (#) map to the original task list.
       (inputs / gr / scenario / numeric + UI↔Excel parity). No defects found;
       aesthetic polish rolls into #15. Premium sample workbook shared for the
       visual check.
-- [ ] **#14** Excel **charts** — native embedded charts across the model (e.g.
-      revenue & EBITDA trend, cashflow, NPV / scenario cone, funding & debt),
-      engine-generated from the sheet data (no client-side calc) · *wk 2*
+- [x] **#14** Excel **charts** — **done ✓** (14 Oct, `session_2026_10_14`):
+      an 8-chart live **Summary dashboard**, all native + recalculating from a
+      live chart-data block (no client-side calc) — revenue/EBITDA/net income,
+      EBITDA & net margin, operating-cost composition, cash flow & break-even
+      (live dynamic break-even marker), cash balance, capex, NPV & IRR by
+      scenario. Also the **KPI sheet rebuilt as the full ratios board** (every
+      engine ratio from `build_ratios` as a live Excel formula; CAPM / unit-
+      economics inputs exposed). Parity + gating + golden fixtures; full suite
+      green (1508). · *wk 2*
 - [ ] **#15** Excel **design pass** — visual polish & consistency across every
-      sheet (typography, colour/theme, spacing, borders, print layout) · *wk 2*
+      sheet (typography, colour/theme, spacing, borders, print layout) · *wk 2* —
+      **in progress**: chart house-style + the per-sheet top nav band / autofit
+      landed with #14/#16; the full cross-sheet polish pass remains.
 - [ ] **#16** Excel **navigation dashboard** — a landing sheet with headline
-      KPIs + jump-links to every sheet (one entry point into the model) · *wk 2*
+      KPIs + jump-links to every sheet (one entry point into the model) · *wk 2* —
+      **in progress**: the KPI/Summary landing + the per-sheet "⬅ Go to dashboard"
+      nav band are in; the jump-links-to-every-sheet index is the remainder.
 - [ ] **#7 / #8** **NPV of options** + **comparison of options** — ⚠️ *confirm scope:*
       the three scenarios (already compared in the IA sheets), or **alternative
       project plans** compared side-by-side?
