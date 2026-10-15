@@ -1,6 +1,6 @@
 # Sprint — Excel finalised ✓ · now the UI
 
-**Updated:** 15 Oct 2026
+**Updated:** 15 Oct 2026 · 19:08 UTC
 **Focus now (wk 2 · 12–16 Oct):** the **Excel presentation workstream** —
 **#14 charts done ✓** (14 Oct: 8-chart Summary dashboard + the KPI ratios board);
 **#15 design pass** + **#16 nav dashboard** in progress. In parallel on the web:
@@ -14,6 +14,34 @@ question, and the remaining quality-hardening items remain on the engine.
 **Optional parallel:** provision the Google Cloud runway — see `INFRA.md`.
 
 Item numbers (#) map to the original task list.
+
+---
+
+## 15 Oct — session (merged to main · core `session_2026_10_15` → main, web `dashboard_2026_10_15` → main)
+
+**Excel / engine**
+- [x] **Equity IRR & MOIC** now computed (`ratios.py`) — shareholder cash flow
+      (capital in, dividends out, book-equity exit); mirrored in the KPI sheet as
+      live formulas. They were the last engine-`None` valuation ratios. *(extends #14)*
+- [x] **Magnitude-adaptive number formats** — one SSOT rule (`adaptive_decimals`):
+      a vector keeps 2 dp while small, drops to whole from 1000 up, decided per
+      vector from the engine-projected peak. Applied to the Revenue / Opex / Staff /
+      COGS / Capex driver matrices + grand totals. *(part of #15)*
+- [x] **Decade-start layout rule** across every series sheet incl. IS / BS / CF —
+      the first table opens on a clean decade row after the index (one SSOT). *(part of #15)*
+- [x] KPI sheet: whole-plan scalars (NPV / IRR / CAGR / EV …) moved to the **first**
+      (visible) column, not hidden in the last. *(part of #15)*
+
+**Web UI**
+- [x] **Unit Economics section** — CAC / churn / gross-margin-per-customer + a
+      manual per-year active-customers grid, wired end-to-end to
+      `assumptions.unit_economics`; CAC / LTV / LTV·CAC / ARPU now populate (app +
+      Excel). An analytics overlay — it does not feed the P&L. *(new; serves #5)*
+- [x] **Magnitude-adaptive decimals** in the input/output grids + the output
+      matrices (`ProjectionTable`, full scale); **section descriptions → a
+      circled-i hover tooltip** (no longer a line under the title). *(part of #5)*
+- [ ] *follow-up:* gate the Unit Economics section to subscription / recurring-
+      revenue industries (allowlist to confirm).
 
 ---
 
