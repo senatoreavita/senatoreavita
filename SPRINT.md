@@ -1,6 +1,6 @@
 # Sprint — Excel finalised ✓ · now the UI
 
-**Updated:** 15 Oct 2026 · 19:08 UTC
+**Updated:** 15 Oct 2026 · 19:31 UTC
 **Focus now (wk 2 · 12–16 Oct):** the **Excel presentation workstream** —
 **#14 charts done ✓** (14 Oct: 8-chart Summary dashboard + the KPI ratios board);
 **#15 design pass** + **#16 nav dashboard** in progress. In parallel on the web:
@@ -14,6 +14,39 @@ question, and the remaining quality-hardening items remain on the engine.
 **Optional parallel:** provision the Google Cloud runway — see `INFRA.md`.
 
 Item numbers (#) map to the original task list.
+
+---
+
+## 15 Oct — session · launch infra (web `dashboard_2026_10_16` · pushed, pending merge)
+
+The three launch-blockers from the timeline — **payments**, **security**,
+**log-in-with-Google** — all landed in code this session. Stripe and Google
+await only the owner's external account setup; see
+`StartUPlan_Web/docs/SETUP_payments_auth_security.md`.
+
+- [x] **Stripe test-mode checkout → entitlements** — `api/checkout` (hosted
+      session, buyer id from the verified session) + `api/stripe-webhook` (the
+      only writer of paid `tier_grants`: grant on paid checkout, renew/revoke on
+      subscription events; signature-verified, idempotent). Catalog-derived
+      price→tier map (one `STRIPE_PRICE_<PLAN>` env var each). The upgrade modal's
+      Buy button now starts real checkout outside internal trial mode. Runs fully
+      in **test mode** (`sk_test_…`, test cards) — no legal entity, no real money.
+      *Owner to do:* create the Stripe account + 3 products/prices + webhook
+      secret (steps in the setup doc).
+- [x] **Security — RLS drift guard** — a static test
+      (`supabase/migrations/rls-coverage.test.ts`) that fails the build if any
+      `public` table ships without RLS, if a `user_id` table has a
+      non-owner-scoped policy, or if any policy is unconditionally permissive.
+      Passes on the current schema; guards every future migration.
+- [x] **Google OAuth** — the easier provider; the code was already complete
+      (buttons, `signInWithOAuth`, `/auth/callback`). No code change — documented
+      the Supabase + Google-Cloud config. *Owner to do:* create the Google OAuth
+      client and paste it into Supabase → Providers → Google.
+- [ ] **Apple (iCloud) OAuth** — deferred: needs the paid Apple Developer
+      account ($99/yr), a Service ID, a `.p8` key and domain verification. Hide
+      the button with `NEXT_PUBLIC_OAUTH_APPLE=false` until then.
+- [x] +22 tests (checkout 8, webhook 10, RLS 4); full web suite **389 green**;
+      `tsc` clean.
 
 ---
 
