@@ -74,9 +74,43 @@ a Resend API key.
   if needed while validating.
 - **Google-hosted site** → keep the A/CNAME records **DNS only**, not proxied.
 
-## Invoices
+## Invoices — build spec (Option A: Stripe-generated, chosen 2026-10-25)
 
-Trigger = the existing Stripe webhook (`/api/stripe-webhook` in StartUPlan_Web)
-on `checkout.session.completed` / `invoice.paid`. Email the customer from
-`billing@startuplan.ai` via the Resend API, attaching Stripe's hosted invoice
-PDF. Engine already scaffolds `RESEND_API_KEY` in `infra/settings.py`.
+Build on branch **`dashboard_2026_10_26`** in StartUPlan_Web.
+
+**Decision:** let Stripe create the invoices (numbered, hosted PDF, VAT-ready
+later); we just email the PDF from `billing@startuplan.ai` via Resend. No
+custom PDF/numbering.
+
+**Current state (verified):** one-time SKUs (`plan`, `bankable`) use
+`mode:"payment"` and do NOT create a Stripe invoice today; the subscription
+(`advisor`) does. Webhook handles `checkout.session.completed` +
+`customer.subscription.updated/deleted`; it does NOT handle `invoice.paid`.
+
+**Steps**
+1. `src/app/api/checkout/route.ts` — for one-time sessions add
+   `invoice_creation: { enabled: true }` so `payment`-mode checkouts produce an
+   invoice + PDF. (Subscriptions already invoice.)
+2. `src/app/api/stripe-webhook/route.ts` — add `case "invoice.paid":` (and treat
+   `invoice.payment_succeeded` the same). Retrieve the invoice; read
+   `invoice.invoice_pdf` (PDF URL) + `hosted_invoice_url` + `number` +
+   `customer_email` + amount/currency.
+3. New `src/lib/invoiceEmail.server.ts` — Resend send helper: fetch the PDF
+   bytes from `invoice_pdf`, send via Resend with the PDF as an attachment,
+   from `billing@startuplan.ai`, reply-to `hello@startuplan.ai`.
+4. **Idempotency:** Stripe retries webhooks — dedupe so one invoice is emailed
+   once (guard on `invoice.id`, e.g. a `sent_invoices` row or a Stripe metadata
+   flag). Ack 200 even when skipping.
+5. **Env/secrets:** create a SEPARATE Resend key `startuplan-backend` (Sending
+   access) → set as the web deployment's `RESEND_API_KEY`. Optional
+   `INVOICE_FROM=billing@startuplan.ai`. Do NOT reuse `startuplan-supabase`.
+
+**Email content:** subject `Your StartUPlan invoice {number}`; body: thanks +
+plan name + amount + link to `hosted_invoice_url`; PDF attached.
+
+**Testing:** Stripe test mode — complete a test checkout (one-time + sub), or
+`stripe trigger invoice.paid`; confirm the mail arrives from
+`billing@startuplan.ai` with the PDF.
+
+**VAT (later, not a blocker):** checkout charges net, no VAT today. Proper EU
+VAT invoices need Stripe Tax + the company's VAT registration — separate task.
