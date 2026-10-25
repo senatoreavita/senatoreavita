@@ -204,6 +204,11 @@ From the code-quality review of `core/exports/excel` (verdict **B+**; see the PD
       UI's already-computed result (ties into #2)
 - [ ] **"Save this case"** — persist a chosen MC case's levers as a scenario
 - [ ] **"Pin this run"** — optional fixed seed for a frozen report copy
+- [ ] **Export builder dialog** — "Export model" opens a form: tick which
+      tables/sections to include/exclude (and extract a single table with its
+      explanation), and choose the format — **Excel** (built), **PDF** (#12/#13),
+      **PowerPoint (PPT)** (new). Web: the dialog UI. Engine: exporters take an
+      include-manifest; add a PPTX exporter.
 - [ ] **#11** Explore other options for a project
 - [ ] **#12** PDF — formal business plan (layout ~80% built)
 - [ ] **#13** PDF — explanatory business plan (variant)

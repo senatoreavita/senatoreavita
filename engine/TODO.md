@@ -23,6 +23,14 @@ Item numbers (#) map to the original task list.
 - [ ] **#1** Embed logo in PDF (upper tier)
 - [ ] Italian (IT) translation (currently falls back to EN)
 
+## Export options (dialog-driven)
+- [ ] Exporters accept an **include-manifest** (which tables/sections; single
+      table + its explanation) sent by the web Export dialog
+- [ ] **PowerPoint (PPTX)** exporter — new (`core/exports/pptx/`): key tables +
+      charts + narrative
+- [ ] Wire PDF (#12/#13) + Excel onto the same manifest contract, so one dialog
+      drives all three formats
+
 ## Explore
 - [ ] **#11** Other options for a project
 

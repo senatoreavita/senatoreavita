@@ -13,6 +13,10 @@ Item numbers (#) map to the original task list.
 - [x] **#4** Subdivide the **Monte Carlo** section into subsections
 - [ ] **#1** Company **logo upload** (upper tier, gated)
 - [ ] **#5** **UI review** pass
+- [ ] **Export builder dialog** — "Export model" opens a modal form: checkboxes
+      for which tables/sections to include/exclude (and a single table + its
+      explanation), plus a format choice — **Excel / PDF / PPT**. Posts the
+      include-manifest + chosen format to the engine export endpoint (gated by tier).
 
 ---
 
