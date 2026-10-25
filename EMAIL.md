@@ -43,14 +43,18 @@ a Resend API key.
       behind Cloudflare's proxy
 - [x] Nameservers switched at Namecheap to `nick.ns.cloudflare.com` /
       `tina.ns.cloudflare.com` (Custom DNS)
-- [ ] **Cloudflare domain Active** (propagating; 1–2 h typical)
-- [ ] **Email Routing** enabled → the addresses above created → verify the Gmail
-      destination (adds the apex MX)
-- [ ] **Resend** still shows domain **Verified** after the move
-- [ ] **Supabase → Authentication → Custom SMTP** = `smtp.resend.com:587`,
-      user `resend`, pass = Resend API key, sender `no-reply@startuplan.ai`
+- [x] **Cloudflare domain Active** (2026-10-25; propagated in <1 h)
+- [x] **Email Routing** enabled → `hello@ support@ billing@ privacy@ ceo@
+      postmaster@` + catch-all → `startuplan.ai@gmail.com` (destination verified;
+      apex MX `route1/2/3.mx.cloudflare.net` added)
+- [x] **Resend** domain **Verified** after the move (org `financefrollini`,
+      region Ireland eu-west-1)
+- [x] **Supabase → Authentication → Custom SMTP** already configured (project
+      `startuplan-prod`): `smtp.resend.com:587`, user `resend`, sender name
+      `StartUPlan`, key `startuplan-supabase`
 - [ ] **Auto-invoice email** built into the Stripe webhook (send from
-      `billing@startuplan.ai` via Resend, attach Stripe's invoice PDF)
+      `billing@startuplan.ai` via Resend, attach Stripe's invoice PDF) — use a
+      SEPARATE backend key, not `startuplan-supabase`
 
 ## Records already in place (from the import)
 
