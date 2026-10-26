@@ -1,6 +1,6 @@
 # Sprint — Excel finalised ✓ · now the UI
 
-**Updated:** 15 Oct 2026 · 19:31 UTC
+**Updated:** 26 Oct 2026 · 20:25 UTC
 **Focus now (wk 2 · 12–16 Oct):** the **Excel presentation workstream** —
 **#14 charts done ✓** (14 Oct: 8-chart Summary dashboard + the KPI ratios board);
 **#15 design pass** + **#16 nav dashboard** in progress. In parallel on the web:
@@ -115,7 +115,8 @@ await only the owner's external account setup; see
 
 ## ← THIS SPRINT — the UI (web)
 - [ ] **#1** Company **logo upload** (upper tier, gated) — UI
-- [ ] **#5** **UI review** pass
+- [ ] **#5** **UI review** pass *(wk 1)* — incl. **mobile-usable landing / auth /
+      pricing** (not a rewrite) · **not done**
 
 ## Excel — remaining (engine)
 *Schedule: **#6 this week (wk 1)**, then the **Excel presentation workstream
