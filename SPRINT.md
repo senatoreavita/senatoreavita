@@ -1,7 +1,12 @@
 # Sprint — Excel finalised ✓ · now the UI
 
-**Updated:** 26 Oct 2026 · 20:25 UTC
-**Focus now (wk 2 · 12–16 Oct):** the **Excel presentation workstream** —
+**Updated:** 26 Oct 2026 · 20:30 UTC
+**Now (wk 4 · 26–30 Oct):** Sensitivity Excel sheet + per-family ratios +
+entitlements v6 landed (see the **26 Oct** section). **Carried from wk 1–2:**
+UI review **#5** (wk 1), Excel design **#15** + nav **#16** (wk 2), logo **#1**.
+_Historical narrative below._
+
+**Focus (historical · wk 2 · 12–16 Oct):** the **Excel presentation workstream** —
 **#14 charts done ✓** (14 Oct: 8-chart Summary dashboard + the KPI ratios board);
 **#15 design pass** + **#16 nav dashboard** in progress. In parallel on the web:
 **logo upload** (#1) + the **UI review pass** (#5).
@@ -14,6 +19,28 @@ question, and the remaining quality-hardening items remain on the engine.
 **Optional parallel:** provision the Google Cloud runway — see `INFRA.md`.
 
 Item numbers (#) map to the original task list.
+
+---
+
+## 26 Oct — Sensitivity + ratios + entitlements (core `session_2026_10_26`)
+
+- [x] **Sensitivity Excel sheet** ("Sens" / `sh_Sens`) — a one-way **NPV tornado**
+      (diverging floating bars) + a **switching-values (break-even)** table + a live
+      chart-data table, under a house banner/TOC index. Base NPV links live to IA_B;
+      shock figures are a snapshot. *(advances #15/#16; new Risk/Excel deliverable)*
+- [x] **Entitlements v6** — **sensitivity moved to Plan (tier_1)**; Monte Carlo stays
+      Bankable (tier_2). Shared contract + engine gate + web UI gate flipped; sensitivity
+      is now the 3rd Excel-gating key (tier-matrix regenerated).
+- [x] **Per-family ratio sheets** + single-source **ratio catalog** module + a
+      **Detailed ratios** tab (Ratios → Key ratios); D-nav buttons; i18n (en/fr/uk/it). *(extends #14)*
+- [x] **Feature × tier** comparison table (generator + `docs/tier-matrix.md`).
+- [x] **Email infrastructure** for startuplan.ai — receive + send + auth working
+      (Cloudflare Email Routing + Resend + Supabase SMTP + Gmail send-as). See `EMAIL.md`.
+- [x] **Dashboard nav** — sensitivity surfaced at Plan; contract-driven tier-lock cues
+      from one source of truth; section reorder; redundant middle sub-view rows removed.
+- [ ] **Next (queued for tomorrow):** build the **Sens Check** live what-if sheet —
+      parallel pre-tax appraisal, pristine base, `v.Sens_*` multipliers; spec in the
+      build-brief PDF (engine-fidelity clause §8).
 
 ---
 
@@ -67,14 +94,13 @@ await only the owner's external account setup; see
 
 **Web UI**
 - [x] **Unit Economics section** — CAC / churn / gross-margin-per-customer + a
-      manual per-year active-customers grid, wired end-to-end to
-      `assumptions.unit_economics`; CAC / LTV / LTV·CAC / ARPU now populate (app +
-      Excel). An analytics overlay — it does not feed the P&L. *(new; serves #5)*
+      manual per-year active-customers grid … *(new; served #5)* — **⚠ later REMOVED
+      (26 Oct): cut from launch scope; clean-delete across engine + web, logic kept as a note.**
 - [x] **Magnitude-adaptive decimals** in the input/output grids + the output
       matrices (`ProjectionTable`, full scale); **section descriptions → a
       circled-i hover tooltip** (no longer a line under the title). *(part of #5)*
-- [ ] *follow-up:* gate the Unit Economics section to subscription / recurring-
-      revenue industries (allowlist to confirm).
+- [x] ~~*follow-up:* gate the Unit Economics section to subscription industries~~ —
+      **moot: Unit Economics REMOVED from launch scope (26 Oct).**
 
 ---
 
