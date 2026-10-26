@@ -5,13 +5,40 @@ setup checklist. Three independent jobs, three systems:
 
 | Job | Handled by | DNS it uses |
 | --- | --- | --- |
-| **Receive** mail at `@startuplan.ai` | **Cloudflare Email Routing** (free) | MX (apex) |
+| **Receive** mail at `@startuplan.ai` | **Cloudflare Email Routing** (free) — *→ Google Workspace, planned (see below)* | MX (apex) |
 | **Send** automated mail (auth, notifications, **invoices**) | **Resend** | SPF + DKIM on `send.` subdomain |
 | **Auth** emails from the app (verify / reset) | **Supabase → Custom SMTP → Resend** | (uses Resend's sending) |
 
 DNS for the domain is managed in **Cloudflare** (registrar stays **Namecheap**).
 Sending (SPF/DKIM) and receiving (MX) use different records, so Resend and
 Cloudflare Email Routing coexist with no conflict.
+
+## Mailboxes — Google Workspace (DECIDED · the professional solution)
+
+**Decision (26 Oct):** adopt **Google Workspace Business Starter (~$7/user·mo)**
+as the professional email solution — real `@startuplan.ai` **mailboxes** instead
+of forward-only aliases. Planned; **not a launch blocker** — the free Cloudflare
+forwarding + Resend send-as (below) stays until the switch.
+
+**Why:**
+- real per-service **inboxes**; role addresses (`support@ billing@ hello@ privacy@`)
+  as **Google Groups** — free *within* Workspace, so **one paid seat + free groups**;
+- `@startuplan.ai` **everywhere**, incl. the **Google OAuth consent support email**
+  (no `gmail.com` showing anywhere);
+- **org-owned Shared Drives** (company docs survive people leaving);
+- admin console + **enforced 2FA**, better security/credibility for a SaaS.
+
+**Migration (≈1 h, when adopted):** verify the domain in the Workspace admin
+console → create the user + groups → **repoint the apex `MX` from Cloudflare Email
+Routing to Google** (MX is exclusive — Workspace *replaces* Cloudflare for
+**receiving**). **Resend sending is unaffected** (SPF/DKIM live on `send.`); keep
+**one SPF record per name**. After the switch, retire Cloudflare Email Routing +
+the Gmail "Send mail as" aliases.
+
+**Until then / interim:** current setup stands — Cloudflare forwarding → one Gmail
+(`startuplan.ai@gmail.com`) + Resend send-as. For the **Google OAuth project set up
+now**, own it under the **`startuplan.ai@gmail.com`** brand account (not the personal
+`senatoriavita@gmail.com`), so no personal address appears on the consent screen.
 
 ## Locked address list
 
