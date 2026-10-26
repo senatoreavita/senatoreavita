@@ -24,10 +24,11 @@ Item numbers (#) map to the original task list.
 
 ## 26 Oct — Sensitivity + ratios + entitlements (core `session_2026_10_26`)
 
-- [x] **Sensitivity Excel sheet** ("Sens" / `sh_Sens`) — a one-way **NPV tornado**
-      (diverging floating bars) + a **switching-values (break-even)** table + a live
-      chart-data table, under a house banner/TOC index. Base NPV links live to IA_B;
-      shock figures are a snapshot. *(advances #15/#16; new Risk/Excel deliverable)*
+- [ ] **Sensitivity Excel sheet** ("Sens" / `sh_Sens`) — **under construction.** A
+      one-way **NPV tornado** (diverging floating bars) + a **switching-values
+      (break-even)** table + a live chart-data table, under a house banner/TOC index.
+      Base NPV links live to IA_B; shock figures are a snapshot. Core built; iterating
+      on presentation. *(advances #15/#16; new Risk/Excel deliverable)*
 - [x] **Entitlements v6** — **sensitivity moved to Plan (tier_1)**; Monte Carlo stays
       Bankable (tier_2). Shared contract + engine gate + web UI gate flipped; sensitivity
       is now the 3rd Excel-gating key (tier-matrix regenerated).
