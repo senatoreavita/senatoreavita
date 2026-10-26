@@ -242,6 +242,11 @@ From the code-quality review of `core/exports/excel` (verdict **B+**; see the PD
 - [ ] **#13** PDF — explanatory business plan (variant)
 - [ ] Logo in the PDF (rolls in with #12/#13)
 - [ ] Italian (IT) export translation (currently falls back to EN)
+- [ ] **Google Workspace migration** (Business Starter ~$7/user·mo) — real
+      `@startuplan.ai` mailboxes + free Groups for role addresses; repoint apex
+      **MX Cloudflare → Google** (Resend sending unaffected); then retire
+      Cloudflare Email Routing + the Gmail "Send mail as" aliases. **Not a launch
+      blocker.** Decided 26 Oct — see `EMAIL.md`.
 
 > Reminders:
 > - **No financial calculations on the client side** — the UI reads numbers from
