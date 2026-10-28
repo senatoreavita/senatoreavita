@@ -303,6 +303,18 @@ From the code-quality review of `core/exports/excel` (verdict **B+**; see the PD
       **MX Cloudflare → Google** (Resend sending unaffected); then retire
       Cloudflare Email Routing + the Gmail "Send mail as" aliases. **Not a launch
       blocker.** Decided 26 Oct — see `EMAIL.md`.
+- [ ] **At the Streamlit → Next.js cutover: wire the ops-watcher helpers.** The
+      watcher is the Cloud Run job in `startuplan-ops`; do this while already in
+      GCP for the deploy (needs Secret Manager + a static egress IP for the
+      Namecheap whitelist). (1) Drop in `ops/namecheap_expiry.py` + replace the
+      `.ai` RDAP branch with `check_domain_expiry()` → turns the domain line green
+      with the real registrar expiry (2029-08-05). (2) Use
+      `ops/mission_control_status.build_status_doc(http, tls, domain)` to write the
+      full `status/site` doc each run (fresh `checked_at`) so the Live-status card
+      self-refreshes instead of freezing. Then flip Mission Control's **"Live site
+      — Streamlit"** card → Next.js and start the Streamlit retirement (closes
+      SEC-2). Helpers + wiring steps are in `ops/README.md`. **Not a launch
+      blocker.**
 
 > Reminders:
 > - **No financial calculations on the client side** — the UI reads numbers from
