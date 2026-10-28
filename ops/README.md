@@ -90,6 +90,54 @@ the sandbox API.
 | `NAMECHEAP_WARN_DAYS` | no | `45` | green only if more days remain |
 | `NAMECHEAP_SANDBOX` | no | — | `1` → sandbox API host |
 
+## `mission_control_status.py` — keep the Live-status card fresh
+
+**Problem it solves.** The watcher's **Live status** card reads one shared-db doc
+(`status/site`). If the watcher stops writing it, the card silently freezes at
+the last write — it sat on the 5 Oct run for 23 days before this was noticed.
+
+`build_status_doc(http, tls, domain)` assembles that document in exactly the
+shape the page renders — including a fresh `checked_at` every run and a computed
+`severity` (OK / ATTENTION / PROBLEM) and `report` — so the watcher has one
+source of truth for the payload and the card can't go quietly stale.
+
+### Wire it into the watcher
+At the end of each check-in, after probing the site, call the builder and write
+the result to `status/site`:
+```python
+from namecheap_expiry import check_domain_expiry
+from mission_control_status import build_status_doc, MISSION_CONTROL_URL
+
+doc = build_status_doc(
+    http={"ok": http_up, "latency_ms": latency_ms},     # from the HTTP probe
+    tls={"ok": tls_ok, "expires": tls_expires_iso},      # from the TLS probe (days auto-computed)
+    domain=check_domain_expiry(),                         # the Namecheap check
+)
+# Write it back. In the Claude check-in this is the ArtifactData tool:
+#   ArtifactData(action="update", url=MISSION_CONTROL_URL,
+#                collection="status", doc_id="site",
+#                if_version=<version last read>, data=doc)
+```
+`checked_at` is stamped to "now" by the builder, so **the card's "updated …" line
+tracks each run automatically.** Read `status/site` first and pass its `version`
+as `if_version` so a concurrent edit isn't clobbered.
+
+### Test locally
+```bash
+python -I ops/mission_control_status.py          # prints a demo status doc
+python -I ops/test_mission_control_status.py     # offline tests
+```
+
+### Note on probing from a sandbox
+The TLS probe must run from somewhere that reaches the **origin** directly. An
+intercepting proxy (and some CI sandboxes) terminates TLS, so an `openssl`/`curl`
+check there sees the *proxy's* cert, not `startuplan.ai`'s — the real Cloud Run
+watcher has direct egress and gets the true cert. (This is why a one-off refresh
+from a restricted session can only honestly update the domain + timestamp and
+must carry HTTP/TLS from the last real run.)
+
+---
+
 ### If the Namecheap API isn't available
 If your account can't enable API access, two alternatives keep the line green
 without the registrar API:
