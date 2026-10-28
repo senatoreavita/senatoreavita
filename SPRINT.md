@@ -1,10 +1,15 @@
 # Sprint — Excel finalised ✓ · now the UI
 
-**Updated:** 26 Oct 2026 · 20:30 UTC
-**Now (wk 4 · 26–30 Oct):** Sensitivity Excel sheet + per-family ratios +
-entitlements v6 landed (see the **26 Oct** section). **Carried from wk 1–2:**
-UI review **#5** (wk 1), Excel design **#15** + nav **#16** (wk 2), logo **#1**.
-_Historical narrative below._
+**Updated:** 28 Oct 2026 · 21:14 UTC
+**Now (wk 4 · 26–30 Oct):** two big product builds landed — the **Export Center**
+(export dialog: Excel + scenario scope · business-plan PDF · pitch-deck PPT ·
+how-to-read guide) and the **Project Assistant** (floating, project-scoped chat:
+grounded answers + model-change proposals you Apply → recompute). Plus the
+growth-rows switchboard + workbench rebuild + Detailed ratios, and the dashboard
+KPI band + status badge + live net-CF chart (see the **28/27 Oct** sections).
+Sensitivity Excel sheet + entitlements v6 + email stack landed 26 Oct.
+**Carried from wk 1–2:** UI review **#5** (wk 1), Excel design **#15** + nav
+**#16** (wk 2), logo **#1**. _Historical narrative below._
 
 **Focus (historical · wk 2 · 12–16 Oct):** the **Excel presentation workstream** —
 **#14 charts done ✓** (14 Oct: 8-chart Summary dashboard + the KPI ratios board);
@@ -19,6 +24,57 @@ question, and the remaining quality-hardening items remain on the engine.
 **Optional parallel:** provision the Google Cloud runway — see `INFRA.md`.
 
 Item numbers (#) map to the original task list.
+
+---
+
+## 28 Oct — Export Center + Project Assistant (core `session_2026_10_28` · web `dashboard_2026_10_28`)
+
+Two feature builds, each phased like the Export Center was (modal → formats → polish).
+
+- [x] **Export Center** — an **"Export model" dialog**: pick a format — **Excel**
+      (with a **scenario scope**: base only, or all 3 cases) · **business-plan PDF**
+      · **pitch-deck PPT** · **how-to-read guide**. Engine exporters
+      (`build_sme_excel_export` / `_pdf_` / `_pptx_` / `_guide_export`), the web
+      `ExportDialog`, `/api/export` routing (format + scope), and tests. The PPT path
+      needs **`python-pptx`** installed on the engine (else 502); the business-plan
+      narrative is a **template + optional OpenAI polish**. *This delivers the deferred
+      business-plan PDF (#12/#13).*
+- [x] **Project Assistant** — a **floating, draggable/resizable, project-scoped chat**
+      in the dashboard: **grounded answers with citations** + **model-change proposals**
+      you **Apply → recompute**, validated against an **editable-field whitelist**
+      (addressed by **name, never index** — no off-catalog write lands). Small/large
+      **model tiers**, a per-user **cost meter + rate/daily caps**, a **fail-closed scope
+      guard**. Engine `/plan/assistant` (grounded facts + strict JSON answer|proposal|
+      refusal) + web `/api/assistant` + `AssistantDrawer` + tests. **Needs
+      `OPENAI_API_KEY` on the engine** to answer live (fails closed with "not available"
+      otherwise). Later follow-ups: Light·Dark·Auto theme toggle + bottom-right resize
+      grip on the card. *First build of the AI-copilot spec.*
+- [x] **Tests** — engine export-endpoint (scope/pdf/pptx/guide) + assistant
+      (facts/parse/catalog/validation/red-team/tiers) + pptx-deck; web assistant-patch +
+      route + dialog. Both suites green (web **462**).
+- [ ] **Deploy prerequisites (owner):** `pip install python-pptx openai` on the engine
+      + set `OPENAI_API_KEY`, then restart — both features are code-complete but dormant
+      until the engine has them.
+
+---
+
+## 27 Oct — Growth-rows + workbench rebuild + dashboard (core `session_2026_10_27_A` · web `dashboard_2026_10_27`)
+
+- [x] **Detailed ratios / ratio catalog** — single-source ratio catalog module +
+      per-family ratio sheets + a **Detailed ratios** tab (Ratios → Key ratios); D-nav +
+      i18n (en/fr/uk/it). *(extends #14)*
+- [x] **Growth-rows switchboard** — per-line **±pp** block with per-item appraisal
+      **re-chaining from `gr`** (drag-safe), i18n across all languages, parametrized
+      fidelity + structure tests.
+- [x] **Workbench rebuild** — house grid (years from **D**), banner/TOC via
+      `write_sheet_index`, **exact per-item growth** (`gr` rate + pp) **plus level**,
+      detail tables in the TOC (collapsed by default), recalc-verified for
+      tie/level/growth; snapshots/goldens regenerated, full sweep green, render-checked.
+- [x] **Dashboard (web)** — compact switchboard with **level vectors moved to a hidden
+      engine block**, a **KPI band + context-aware status badge**, and a **live net-CF
+      chart** (house style) + a base net-CF row. Fidelity/gating/snapshot tests green.
+- [x] **Unit Economics** (CAC/LTV/ARPU) — **removed from launch scope**: engine+web
+      clean-delete, logic kept as a note.
 
 ---
 
