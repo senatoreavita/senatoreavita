@@ -321,6 +321,13 @@ From the code-quality review of `core/exports/excel` (verdict **B+**; see the PD
       deserialize) + save (stamp `CURRENT`), and a per-version fixtures test — so engine
       schema changes never orphan a saved plan. **Required before real users store plans.**
       *(internal task #11)*
+- [ ] **[deploy] Recompile the engine lockfile in CI before building the image.**
+      Phase-0 cleanup dropped the unused `plotly` from `startuplan-core/requirements.in`
+      and hand-removed the `plotly`/`narwhals` blocks from `requirements.txt` (pip-tools
+      wasn't installable in the cloud sandbox). The lock is correct + installable, but run
+      `pip-compile --generate-hashes --output-file=requirements.txt requirements.in` in CI
+      (where pip-tools works) to guarantee no other plotly-only transitive orphan lingers.
+      Note also left at the top of `requirements.in`.
 - [ ] **Google Workspace migration** (Business Starter ~$7/user·mo) — real
       `@startuplan.ai` mailboxes + free Groups for role addresses; repoint apex
       **MX Cloudflare → Google** (Resend sending unaffected); then retire
