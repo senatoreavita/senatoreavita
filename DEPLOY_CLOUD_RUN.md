@@ -54,6 +54,16 @@ closed (503) in any non-`development` environment without it. Before public laun
 end state is `--ingress internal --no-allow-unauthenticated` + the web minting an ID token
 (needs `google-auth-library` added to the web).
 
+> **Technical terms** (what to search for; also on the Timeline):
+> - **Hiding the engine (B1)** = Cloud Run **"internal" ingress**, plus a **Serverless VPC Access
+>   connector** (`--vpc-connector` + `--vpc-egress`) so the web can reach it over the internal path.
+> - **The before-public lock (the "Google ID badge")** = **Cloud Run service-to-service
+>   authentication with ID tokens (OIDC)**: engine **`--no-allow-unauthenticated`**, the web's
+>   service account granted **`roles/run.invoker`** on the engine, and the web attaching a
+>   **Google-signed ID token** per call (via **`google-auth-library`**, using the engine URL as the
+>   **audience**). This is the layer to add before going public; the beta runs on internal ingress +
+>   the shared service token.
+
 ---
 
 ## 0. Provisioning (from INFRA.md — verify done)
