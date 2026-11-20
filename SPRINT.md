@@ -1,15 +1,21 @@
-# Sprint — Excel finalised ✓ · now the UI
+# Sprint — apps code-complete ✓ · now DEPLOY
 
-**Updated:** 28 Oct 2026 · 21:14 UTC
-**Now (wk 4 · 26–30 Oct):** two big product builds landed — the **Export Center**
-(export dialog: Excel + scenario scope · business-plan PDF · pitch-deck PPT ·
-how-to-read guide) and the **Project Assistant** (floating, project-scoped chat:
-grounded answers + model-change proposals you Apply → recompute). Plus the
-growth-rows switchboard + workbench rebuild + Detailed ratios, and the dashboard
-KPI band + status badge + live net-CF chart (see the **28/27 Oct** sections).
-Sensitivity Excel sheet + entitlements v6 + email stack landed 26 Oct.
-**Carried from wk 1–2:** UI review **#5** (wk 1), Excel design **#15** + nav
-**#16** (wk 2), logo **#1**. _Historical narrative below._
+**Updated:** 20 Nov 2026 · 19:22 UTC
+**Now (wk 8 · 23–27 Nov · deploy):** both apps are **code-complete** — web + engine
+API, the **Export Center** (Excel · PDF · PPT · how-to-read guide) and the **Project
+Assistant** are all built. **Streamlit is fully removed from the engine** (FastAPI-only;
+`uvicorn service.api:app`, `/health` live) and the web has `output:'standalone'` + a
+Dockerfile — so **the only gap to letting people in is deployment**. A private,
+**invite-only beta is pulled to ~wk 9**; **public launch holds at 15 Dec (wk 11)**.
+**Company ✓ · VAT ✓**; still external: trading-name registration + the business bank
+account (gates live payouts). **Phone · iPad · web dashboards done ✓** (device-class
+layouts + full EN/FR/UA/IT i18n convergence + in-place language switch + the re-login
+language-leak fix). A **deep pre-deploy code review of both branches ran 20 Nov**
+(report + plain-language PDF) — see the Launch Readiness go/no-go gate: **3 must-fix-
+before-beta** items (engine auth fail-open · `profiles.plan` tier-escalation · the RLS
+drift-guard not covering user-data tables), plus the **plan schema-version migration
+path** specced as a pre-public item. _Historical narrative below (the sprint began as
+"Excel finalised → the UI")._
 
 **Focus (historical · wk 2 · 12–16 Oct):** the **Excel presentation workstream** —
 **#14 charts done ✓** (14 Oct: 8-chart Summary dashboard + the KPI ratios board);
@@ -198,8 +204,9 @@ await only the owner's external account setup; see
 
 ## ← THIS SPRINT — the UI (web)
 - [ ] **#1** Company **logo upload** (upper tier, gated) — UI
-- [ ] **#5** **UI review** pass *(wk 1)* — incl. **mobile-usable landing / auth /
-      pricing** (not a rewrite) · **not done**
+- [x] **#5** **UI review** pass *(wk 1)* — incl. **mobile-usable landing / auth /
+      pricing** — **done ✓** (delivered via the phone + iPad device views and the web
+      review/improvements pass; full i18n convergence across all four locales)
 
 ## Excel — remaining (engine)
 *Schedule: **#6 this week (wk 1)**, then the **Excel presentation workstream
@@ -288,16 +295,32 @@ From the code-quality review of `core/exports/excel` (verdict **B+**; see the PD
       UI's already-computed result (ties into #2)
 - [ ] **"Save this case"** — persist a chosen MC case's levers as a scenario
 - [ ] **"Pin this run"** — optional fixed seed for a frozen report copy
-- [ ] **Export builder dialog** — "Export model" opens a form: tick which
-      tables/sections to include/exclude (and extract a single table with its
-      explanation), and choose the format — **Excel** (built), **PDF** (#12/#13),
-      **PowerPoint (PPT)** (new). Web: the dialog UI. Engine: exporters take an
-      include-manifest; add a PPTX exporter.
+- [x] **Export builder dialog** — **done ✓** (the 28 Oct **Export Center**): "Export
+      model" dialog with format **Excel** (+ scenario scope) · **PDF** · **PPT** ·
+      how-to-read guide; engine exporters + web dialog + `/api/export` + tests.
+      *Remaining (backlog):* per-section include/exclude manifest + single-table extraction.
 - [ ] **#11** Explore other options for a project
-- [ ] **#12** PDF — formal business plan (layout ~80% built)
-- [ ] **#13** PDF — explanatory business plan (variant)
+- [x] **#12 / #13** PDF — business plan + how-to-read guide — **built ✓** via the Export
+      Center (reportlab; optional AI narrative polish). *Remaining:* live-verify once the
+      engine is deployed + final design polish. ⚠ *review note:* the PDF/PPT export runs a
+      synchronous ~40s AI polish on the request path by default — turn it off on the
+      export path (see the pre-deploy review, "Important").
 - [ ] Logo in the PDF (rolls in with #12/#13)
 - [ ] Italian (IT) export translation (currently falls back to EN)
+- [ ] **Model Versioning** (user-facing feature — save / name / compare versions of a
+      business model) — **no engine + no store** backing today. Options: (a) ship the UI
+      behind its tier lock; (b) **defer** (recommended — don't advertise a paid feature
+      that doesn't render yet); (c) a `localStorage` stopgap (single-device, not real
+      history — avoid on a paid tier). A real build sits on the store **plus** the
+      schema-version migration path below. **Not a launch item.** *(internal task #10)*
+- [ ] **Plan schema-version migration path** (plumbing · **pre-public**, not a beta
+      blocker — specced in Launch Readiness + Launch Timeline). Today
+      `project_inputs.schema_version` is stamped `=1` but never read back, and `PlanInput`
+      is `extra="forbid"`. Build: one `CURRENT_SCHEMA_VERSION`, a migrator registry
+      (`v(n→n+1)`, pure/additive), version-aware load (read `schema_version` → migrate →
+      deserialize) + save (stamp `CURRENT`), and a per-version fixtures test — so engine
+      schema changes never orphan a saved plan. **Required before real users store plans.**
+      *(internal task #11)*
 - [ ] **Google Workspace migration** (Business Starter ~$7/user·mo) — real
       `@startuplan.ai` mailboxes + free Groups for role addresses; repoint apex
       **MX Cloudflare → Google** (Resend sending unaffected); then retire
