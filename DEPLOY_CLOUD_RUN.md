@@ -122,32 +122,30 @@ gcloud run deploy startuplan-engine \
   if exports/MC feel slow). Note the **internal URL** it prints → that's `ENGINE_EXTRACT_URL`.
 - `SUPABASE_ANON_KEY` is a public value; fine as an env var (or move to a secret if you prefer).
 
-## 4. Build + push the WEB image  (after fix A)
-Pass every client `NEXT_PUBLIC_*` as a build arg (they bake into the bundle):
+## 4. Build + push the WEB image  (uses `cloudbuild.yaml`)
+The web repo ships a `cloudbuild.yaml` that builds on Cloud Build (no local Docker) and
+passes every client `NEXT_PUBLIC_*` value — they're inlined into the browser bundle at
+build time, so they must be set now, not at runtime. It validates the required ones are
+non-empty first (a blank value would ship a broken-login / demo-mode image), then pushes
+to Artifact Registry. One command:
 ```bash
 cd ../startuplan_web
 TAG=$(git rev-parse --short HEAD)
-IMG=europe-west1-docker.pkg.dev/startuplan-prod/startuplan/web:$TAG
-gcloud builds submit --tag "$IMG" \
-  --substitutions _NEXT_PUBLIC_SUPABASE_URL=...,_NEXT_PUBLIC_SUPABASE_ANON_KEY=...    # see note
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=\
+_IMAGE=europe-west1-docker.pkg.dev/startuplan-prod/startuplan/web:$TAG,\
+_SUPABASE_URL=https://XXXX.supabase.co,\
+_SUPABASE_ANON_KEY=eyJ...,\
+_SITE_URL=https://<web-url>,\
+_TURNSTILE_SITE_KEY=0x...,\
+_API_URL=https://<web-url>
+# optional (defaults shown): _OAUTH_GOOGLE=true _OAUTH_APPLE=false _TRIAL_UPGRADES=false
 ```
-> `gcloud builds submit --tag` can't pass `--build-arg` directly. Use **one of**:
-> (a) a small `cloudbuild.yaml` with a `docker build --build-arg …` step, or
-> (b) build locally and push:
-> ```bash
-> docker build -t "$IMG" \
->   --build-arg NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x... \
->   --build-arg NEXT_PUBLIC_SUPABASE_URL=https://XXXX.supabase.co \
->   --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ... \
->   --build-arg NEXT_PUBLIC_SITE_URL=https://<web-url> \
->   --build-arg NEXT_PUBLIC_OAUTH_GOOGLE=true \
->   --build-arg NEXT_PUBLIC_OAUTH_APPLE=false \
->   --build-arg NEXT_PUBLIC_API_URL=https://<web-url> \
->   --build-arg NEXT_PUBLIC_TRIAL_UPGRADES=false .
-> gcloud auth configure-docker europe-west1-docker.pkg.dev -q && docker push "$IMG"
-> ```
+> All of these are **PUBLIC** values — safe as substitutions. The real secrets (service-role
+> key, Stripe, Turnstile *secret*) go in at deploy (step 5) via `--set-secrets`, never baked
+> into the image.
 > `<web-url>` is chicken-and-egg: deploy once to learn the URL, then rebuild with the real
-> `NEXT_PUBLIC_SITE_URL`/`APP_URL`, or map a custom domain up front and use that.
+> `_SITE_URL` / `_API_URL`, or map a custom domain up front and use that.
 
 ## 5. Deploy the WEB (public)
 Runtime server env (secrets + the internal engine URL). `NEXT_PUBLIC_*` are already baked.
