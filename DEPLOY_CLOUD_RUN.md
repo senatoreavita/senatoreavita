@@ -33,38 +33,44 @@ broken-login / misleading-UI problem, **not** a server-side tier bypass. A clien
 safety-catch was also added (`useUserTier`): a production build never defaults to the demo
 tier, so a misbuilt image can't show everything unlocked.
 
-### B. Web→engine auth is the bearer **service token**, not a Google ID token
-The web calls the engine with `Authorization: Bearer ${EXTRACT_SERVICE_TOKEN}` (every
-`src/app/api/*` route). There is **no `google-auth` dependency**, so it does **not** mint a
-Cloud Run ID token. Therefore you **cannot** deploy the engine `--no-allow-unauthenticated`
-(Cloud Run's IAM layer would reject the web's token-only calls before they reach the app).
+### B. Web→engine auth — Google ID token (OIDC), shared token as backstop
+The web mints a **Google-signed ID token** for the engine URL (as audience) on every
+`src/app/api/*` call — `src/lib/engineAuth.ts`, using `google-auth-library` — and sends it in
+`Authorization`. It **also** sends the shared `EXTRACT_SERVICE_TOKEN` in a separate
+`X-Extract-Token` header. Two independent gates, so one mis-deploy can't open the engine.
 
-**Decision: B1 selected — hide the engine.** ✅
-- **B1 (chosen — strongest):** engine `--ingress internal --allow-unauthenticated`. Internal
-  ingress blocks the public internet; the app's `EXTRACT_SERVICE_TOKEN` is the auth. **Cost:** the
-  web must reach the engine *through the VPC*, so it needs a **Serverless VPC connector** +
-  `--vpc-egress all-traffic`; and because then *all* the web's egress routes through the VPC, a
-  **Cloud NAT** so it can still reach Supabase/Stripe on the public internet. One-time ~15-min
-  setup — commands in **step 4b**.
-- **B2 (not chosen — simpler fallback):** engine `--ingress all --allow-unauthenticated`, no
-  VPC/NAT. The engine URL is publicly reachable but **token-gated** (fail-closed: unset token ⇒
-  503; a 32-byte token is infeasible to brute, compare is constant-time). Faster to stand up; keep
-  it as the fallback if the VPC/NAT setup proves fiddly on the day.
+**Decision: ID-token auth selected — best practice, $0 extra infra.** ✅
+- **Primary (platform):** engine `--ingress all --no-allow-unauthenticated`; the web's runtime
+  service account is granted **`roles/run.invoker`** on the engine. Cloud Run validates the ID
+  token *at the edge*, so an unauthenticated request never reaches the app. Scales to zero — **no
+  VPC, no NAT, no monthly cost**.
+- **Backstop (app):** the engine still checks `EXTRACT_SERVICE_TOKEN`, now read from
+  `X-Extract-Token` (falling back to `Authorization: Bearer` for pre-ID-token clients). So even a
+  mis-deploy to `--allow-unauthenticated` can't expose it, and local dev (no Cloud Run in front)
+  runs on this token alone. The ID-token mint auto-disables off Cloud Run (no metadata server).
 
-Either way **`EXTRACT_SERVICE_TOKEN` must be set** — after the Phase-0 auth fix the engine fails
-closed (503) in any non-`development` environment without it. Before public launch, the proper
-end state is `--ingress internal --no-allow-unauthenticated` + the web minting an ID token
-(needs `google-auth-library` added to the web).
+**Alternatives (not chosen — kept for reference):**
+- **B1 — also hide the engine at the network layer:** add `--ingress internal` + a Serverless VPC
+  connector (`--vpc-egress all-traffic`) + Cloud NAT. This layers network hiding *on top of* the ID
+  token, at **~$40–55/mo** (connector + NAT, always-on). Optional hardening for later; commands in
+  **step 4b**. The engine holds only the RLS-gated anon key, not the service-role key, so this buys
+  little for the beta — it's abuse-surface reduction, not user-data protection.
+- **B2 — shared token only, no ID token:** engine `--ingress all --allow-unauthenticated`,
+  token-gated (fail-closed: unset token ⇒ 503; 32-byte token, constant-time compare). The simplest
+  fallback if the invoker grant proves fiddly on the day — just drop `--no-allow-unauthenticated`
+  and skip the grant; the `X-Extract-Token` backstop still gates every call.
+
+`EXTRACT_SERVICE_TOKEN` **must be set** in all of the above — after the Phase-0 auth fix the engine
+fails closed (503) in any non-`development` environment without it.
 
 > **Technical terms** (what to search for; also on the Timeline):
-> - **Hiding the engine (B1)** = Cloud Run **"internal" ingress**, plus a **Serverless VPC Access
->   connector** (`--vpc-connector` + `--vpc-egress`) so the web can reach it over the internal path.
-> - **The before-public lock (the "Google ID badge")** = **Cloud Run service-to-service
->   authentication with ID tokens (OIDC)**: engine **`--no-allow-unauthenticated`**, the web's
->   service account granted **`roles/run.invoker`** on the engine, and the web attaching a
->   **Google-signed ID token** per call (via **`google-auth-library`**, using the engine URL as the
->   **audience**). This is the layer to add before going public; the beta runs on internal ingress +
->   the shared service token.
+> - **ID-token / OIDC service-to-service auth (chosen)** = engine **`--no-allow-unauthenticated`**,
+>   the web's service account granted **`roles/run.invoker`** on the engine, and the web attaching a
+>   **Google-signed ID token** per call (via **`google-auth-library`**, engine URL as the
+>   **audience**). This is the "Google ID badge."
+> - **Hiding the engine (B1, optional add-on)** = Cloud Run **"internal" ingress** + a **Serverless
+>   VPC Access connector** (`--vpc-connector` + `--vpc-egress`) + **Cloud NAT**. Network-layer
+>   hiding; stacks on top of the ID token if you ever want it.
 
 ---
 
@@ -104,7 +110,7 @@ IMG=europe-west1-docker.pkg.dev/startuplan-prod/startuplan/engine:$TAG
 gcloud builds submit --tag "$IMG" .
 ```
 
-## 3. Deploy the ENGINE (internal, token-gated)
+## 3. Deploy the ENGINE (public URL, IAM-locked + token-gated)
 The engine config is `extra="forbid"` — pass **only** the variables it knows
 (`AI_PROVIDER`, `ENVIRONMENT`, `STARTUPLAN_DEBUG`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 `APP_URL`, `LANDING_PAGE_URL`) + its 4 secrets. Any unknown var stops it booting.
@@ -112,16 +118,20 @@ The engine config is `extra="forbid"` — pass **only** the variables it knows
 gcloud run deploy startuplan-engine \
   --image "$IMG" \
   --region europe-west1 \
-  --ingress internal \
-  --allow-unauthenticated \
+  --ingress all \
+  --no-allow-unauthenticated \
   --min-instances 0 --max-instances 1 \
   --cpu 1 --memory 1Gi --concurrency 8 --timeout 120 \
   --set-env-vars ENVIRONMENT=staging,AI_PROVIDER=openai,STARTUPLAN_DEBUG=false,SUPABASE_URL=https://XXXX.supabase.co,SUPABASE_ANON_KEY=eyJ...,APP_URL=https://<web-url>,LANDING_PAGE_URL=https://<web-url> \
   --set-secrets EXTRACT_SERVICE_TOKEN=EXTRACT_SERVICE_TOKEN:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest
 ```
-- `ENVIRONMENT=staging` + the token set ⇒ fail-closed auth is active (good).
+- `--no-allow-unauthenticated` ⇒ Cloud Run IAM gates the engine: only callers bearing a valid
+  Google ID token *and* holding `roles/run.invoker` get in (grant is in **step 6**). `--ingress all`
+  is fine because IAM is the lock — the public URL answers only to authenticated callers.
+- `ENVIRONMENT=staging` + the token set ⇒ the app-level fail-closed backstop is active too (good).
 - `--max-instances 1` for the beta (the 10k Monte-Carlo path is CPU-heavy; bump `--cpu`/`--memory`
-  if exports/MC feel slow). Note the **internal URL** it prints → that's `ENGINE_EXTRACT_URL`.
+  if exports/MC feel slow). Note the **service URL** it prints → that's `ENGINE_EXTRACT_URL` *and*
+  the ID-token **audience** (they must be the same string).
 - `SUPABASE_ANON_KEY` is a public value; fine as an env var (or move to a secret if you prefer).
 
 ## 4. Build + push the WEB image  (uses `cloudbuild.yaml`)
@@ -149,9 +159,12 @@ _API_URL=https://<web-url>
 > `<web-url>` is chicken-and-egg: deploy once to learn the URL, then rebuild with the real
 > `_SITE_URL` / `_API_URL`, or map a custom domain up front and use that.
 
-## 4b. Network for B1 — VPC connector + Cloud NAT  (one-time, ~15 min)
-B1 hides the engine (internal ingress), so the web reaches it *through the VPC*, and the web's
-other egress (Supabase, Stripe) then needs a NAT to reach the internet.
+## 4b. (OPTIONAL — B1 only) Network hiding — VPC connector + Cloud NAT  (~15 min, ~$40–55/mo)
+**Skip this for the beta.** The chosen ID-token path does not need it. Do this *only* if you later
+want to also hide the engine behind internal ingress (B1): the web then reaches it *through the
+VPC*, and the web's other egress (Supabase, Stripe) needs a NAT to reach the internet. If you do,
+also change the engine back to `--ingress internal` in step 3 and add the `--vpc-connector` line to
+the web deploy in step 5.
 ```bash
 gcloud services enable vpcaccess.googleapis.com compute.googleapis.com
 
@@ -169,8 +182,9 @@ gcloud compute routers nats create startuplan-nat \
 > Uses the `default` VPC. The connector's `/28` must not overlap an existing subnet.
 
 ## 5. Deploy the WEB (public)
-Runtime server env (secrets + the internal engine URL). `NEXT_PUBLIC_*` are already baked.
-The **B1** VPC connector + egress are included below (from step 4b).
+Runtime server env (secrets + the engine URL). `NEXT_PUBLIC_*` are already baked. On Cloud Run the
+web auto-mints the engine ID token (it detects `K_SERVICE`; no extra env needed). The VPC line is
+**B1-only** — left commented out for the chosen ID-token path.
 ```bash
 gcloud run deploy startuplan-web \
   --image "$IMG" \
@@ -179,14 +193,32 @@ gcloud run deploy startuplan-web \
   --min-instances 0 --max-instances 2 \
   --cpu 1 --memory 512Mi \
   --set-env-vars ENGINE_EXTRACT_URL=<engine-internal-url>,STRIPE_TAX_ENABLED=false,ALLOW_TRIAL_UPGRADES=false,STRIPE_PRICE_PLAN=price_...,STRIPE_PRICE_BANKABLE=price_...,STRIPE_PRICE_ADVISOR=price_... \
-  --set-secrets SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,TURNSTILE_SECRET_KEY=TURNSTILE_SECRET_KEY:latest,EXTRACT_SERVICE_TOKEN=EXTRACT_SERVICE_TOKEN:latest \
-  --vpc-connector startuplan-conn --vpc-egress all-traffic    # B1: route egress through the VPC to reach the internal engine
+  --set-secrets SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,TURNSTILE_SECRET_KEY=TURNSTILE_SECRET_KEY:latest,EXTRACT_SERVICE_TOKEN=EXTRACT_SERVICE_TOKEN:latest
+  # B1 ONLY (optional network hiding, step 4b) — append to the line above:
+  #   --vpc-connector startuplan-conn --vpc-egress all-traffic
 ```
+- `ENGINE_EXTRACT_URL` is the engine's **service URL** from step 3 — the same string the web uses
+  as the ID-token audience. Keep them identical or Cloud Run IAM rejects the token.
+- `EXTRACT_SERVICE_TOKEN` stays set here too: it's the `X-Extract-Token` app backstop.
 - **`ALLOW_TRIAL_UPGRADES`**: leave **off** (default). Turn on **only** if the beta needs the
   no-payment self-upgrade for testers; purge trial grants before public.
 - The engine needs **no** Stripe secrets (and rejects them) — all Stripe lives on the web.
 
 ## 6. Wire the two services together
+- **Grant the web permission to call the engine (the ID-token lock).** The web's runtime service
+  account needs `roles/run.invoker` on the engine, or every call comes back **403** from Cloud Run.
+  If you didn't set `--service-account` on the web, it runs as the default compute SA:
+  ```bash
+  PROJECT_NUMBER=$(gcloud projects describe startuplan-prod --format='value(projectNumber)')
+  WEB_SA=${PROJECT_NUMBER}-compute@developer.gserviceaccount.com   # or your dedicated web SA
+  gcloud run services add-iam-policy-binding startuplan-engine \
+    --region europe-west1 \
+    --member="serviceAccount:${WEB_SA}" \
+    --role=roles/run.invoker
+  ```
+  Quick check: `curl https://<engine-url>/health` from your laptop should return **403** (no token),
+  while the web app's engine calls succeed. 403 from the browser path = the grant is missing or the
+  audience ≠ `ENGINE_EXTRACT_URL`.
 - Set the engine's `APP_URL`/`LANDING_PAGE_URL` and the web's `NEXT_PUBLIC_SITE_URL`/`ENGINE_EXTRACT_URL`
   to the real URLs (redeploy the step whose URL you didn't know yet).
 - **Supabase:** add the web's URL to Auth → URL Configuration (redirect allowlist) and finish the
@@ -226,11 +258,21 @@ confirms the *deployed* database. Run each in the Supabase SQL editor (as the ad
 
 > Re-run this whole block whenever a table or policy changes, and once more just before public launch.
 
+### Engine door (the ID-token lock)
+- [ ] **Unauthenticated calls are refused at the edge.** `curl https://<engine-url>/health` from
+      your laptop (no token) returns **403** — Cloud Run IAM rejecting it before the app runs.
+- [ ] **The web can reach the engine.** Loading the dashboard computes results (no `engine_unauthorized`
+      / 403 in the web logs) — i.e. the `roles/run.invoker` grant and the audience are correct.
+
 ## 8. Smoke test
 ```bash
-# Engine is internal; curl it from within (Cloud Run shell / the web container), token required:
-curl -sS -H "Authorization: Bearer $TOKEN" <engine-internal-url>/health      # {"ok":true,...}
-curl -sS <engine-internal-url>/suggestions                                   # 401 (no token) — good
+# Engine is IAM-locked (--no-allow-unauthenticated). From your laptop, no identity:
+curl -sS -o /dev/null -w '%{http_code}\n' https://<engine-url>/health        # 403 — Cloud Run IAM, good
+
+# With a Google ID token for the engine audience (what the web does automatically):
+TOKEN=$(gcloud auth print-identity-token --audiences=https://<engine-url>)
+curl -sS -H "Authorization: Bearer $TOKEN" -H "X-Extract-Token: $EXTRACT_TOKEN" \
+  https://<engine-url>/health                                                # {"ok":true,...}
 ```
 Then in the browser: sign in with Google → create a project → **compute** (exercises web→engine)
 → **export** a PDF + Excel → ask the **Assistant** a question (needs `OPENAI_API_KEY`). Confirm a
@@ -261,11 +303,11 @@ language, kept next to the beta steps so the delta is obvious.
    Public: map **`startuplan.ai`** onto the web service, with managed TLS (https).
 3. **The doors open.** Beta is invite-only (allowlist on). Public: turn **open
    signup on**.
-4. **The engine's lock gets stronger.** 🛠 Beta uses the shared-password lock
-   (`--allow-unauthenticated` + `EXTRACT_SERVICE_TOKEN`). Public moves to the Google
-   **ID-token** setup — engine `--ingress internal --no-allow-unauthenticated`, and the
-   web mints an ID token for each call (needs `google-auth-library` added to the web) —
-   so a leaked password alone can't get in.
+4. **The engine's lock is already strong.** ✅ The beta runs the Google **ID-token**
+   setup — engine `--no-allow-unauthenticated` (Cloud Run IAM) with the web minting an ID
+   token per call, plus the `X-Extract-Token` app backstop. A leaked password alone can't
+   get in. Public needs **no change** here; the only optional extra is B1 network hiding
+   (internal ingress + VPC/NAT, step 4b), and that's hardening, not a requirement.
 5. **It has to handle a crowd.** Beta runs a single instance. Public:
    - raise `--max-instances`, and make the per-minute rate limit **durable / shared
      across instances** (Memorystore or Upstash) — today it's counted per-instance, so
