@@ -166,7 +166,7 @@
 <script>
 const LAUNCH = new Date('2026-12-15T00:00:00');
 // REMINDER: bump UPDATED to the current UTC time on EVERY edit/republish of this timeline.
-const UPDATED = '2026-11-21T11:45:33Z';
+const UPDATED = '2026-11-21T13:01:26Z';
 // Week columns — Monday-aligned, Mon–Fri working weeks. Wk1 = Mon 5 Oct. The apps
 // are code-complete; wk 8 (Mon 23 Nov) is now the active DEPLOY week, with a private
 // invite-only beta pulled forward to wk 9 and the public launch holding at 15 Dec (Wk11).
@@ -243,6 +243,7 @@ const ROWS = [
 
   {g:'Security & reliability'},
   {t:'RLS drift CI assertion — every table RLS-on + owner-scoped; fails the build on a gap ✓ done', s:2, n:1, c:'done'},
+  {t:'Engine pre-deploy code hygiene ✓ done — removed legacy controller.py (Streamlit step-wrapper) + the dead Streamlit plan_cache; deduped the duplicate gearing KPI into debt_to_capital, shown as "Debt-to-Capital (Gearing)" (lockstep engine+web, render-DTO snapshots regenerated, both test suites green)', s:9, n:2, c:'done'},
   {t:'Durable rate limiting (Memorystore/Upstash) — before wider traffic (beta can run 1 instance)', s:10, n:1, c:'blk'},
   {t:'Monitoring · errors · health alerts (live before the public date)', s:10, n:1, c:'blk'},
   {t:'Security review + engine load test', s:9, n:2, c:'high'},

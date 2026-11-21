@@ -200,7 +200,7 @@
 
 <script>
 const LAUNCH = new Date('2026-12-15T00:00:00');
-const LAST_UPDATED = '2026-11-21T11:56:33Z';  // exact instant; rendered in the viewer's local time
+const LAST_UPDATED = '2026-11-21T13:01:26Z';  // exact instant; rendered in the viewer's local time
 function fmtUpdated(iso){
   try{
     const d = new Date(iso);
@@ -227,7 +227,7 @@ const GROUPS = [
   {g:'Backend · "Google back"', items:[
     {id:'be-engine', name:'Engine API — FastAPI', status:'setup',
       what:'The Python financial engine (NPV / IRR / exports / assistant). The Cloud Run container is BUILT ✓ (uvicorn Dockerfile; Cyrillic PDF font added) — it just has not been deployed yet; runs locally today. Endpoints: /plan/export (Excel/PDF/PPT/guide) and /plan/assistant (grounded Q&A + proposals).',
-      need:['FastAPI Dockerfile (uvicorn service.api:app) ✓ written','Deploy to Cloud Run with --no-allow-unauthenticated (Cloud Run IAM) — the web calls it with a Google ID token + X-Extract-Token backstop; grant the web SA roles/run.invoker','Install python-pptx (PPT export) + set OPENAI_API_KEY (assistant) on the service','Say to Claude: “deploy the engine”'],
+      need:['FastAPI Dockerfile (uvicorn service.api:app) ✓ written','Pre-deploy code hygiene ✓ — removed legacy controller.py + the dead Streamlit plan_cache; deduped the gearing KPI into debt_to_capital (both repos, suites green)','Deploy to Cloud Run with --no-allow-unauthenticated (Cloud Run IAM) — the web calls it with a Google ID token + X-Extract-Token backstop; grant the web SA roles/run.invoker','Install python-pptx (PPT export) + set OPENAI_API_KEY (assistant) on the service','Say to Claude: “deploy the engine”'],
       links:[['Core repo','https://github.com/senatoreavita/startuplan-core',1],['Cloud Run (prod)','https://console.cloud.google.com/run?project=startuplan-prod',1]]},
     {id:'be-infra', name:'GCP infra', status:'setup',
       what:'Artifact Registry (images), Secret Manager (keys), Cloud Build (builds) — the plumbing your services deploy through.',
