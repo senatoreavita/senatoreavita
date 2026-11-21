@@ -196,8 +196,35 @@ gcloud run deploy startuplan-web \
 - [ ] **Invite-only** — confirm the allowlist / beta flag is enforced (open signup OFF). *(Verify this exists in code; it's a Timeline item.)*
 - [ ] **Spend caps** — hard monthly caps + budget alerts on the OpenAI (and Anthropic) accounts.
 - [ ] **Backups** — Supabase PITR ON, and run one restore drill into a throwaway DB.
-- [ ] **Pre-beta RLS re-audit on the live DB** — every table RLS-on + owner-scoped; the drift-guard
-      test (now covers the canonical tables) is the static check; confirm it on prod too.
+### Pre-beta RLS re-audit on the LIVE database
+**This is the step that actually protects user data.** The drift-guard test checks the *repo*; this
+confirms the *deployed* database. Run each in the Supabase SQL editor (as the admin), tick when green:
+
+- [ ] **RLS on everywhere.**
+      `select tablename, rowsecurity from pg_tables where schemaname='public' order by 1;`
+      → every row must be `rowsecurity = true`. Any `false` is a hole — fix before opening.
+- [ ] **Every policy is owner-scoped.**
+      `select tablename, policyname, cmd, qual, with_check from pg_policies where schemaname='public' order by 1,2;`
+      → every policy on a user table references `auth.uid()` — directly (`id = auth.uid()`,
+      `user_id = auth.uid()`) or via a `projects … owner_id = auth.uid()` subquery. **No** policy is
+      `using (true)` / `with check (true)`.
+- [ ] **Entitlements are server-write-only.** `tier_grants` (also `payments`, `subscriptions`,
+      `entitlements`) have **no insert/update policy for the `authenticated` role** — only the service
+      role (the Stripe webhook) writes them. A signed-in user must not be able to grant themselves a tier.
+- [ ] **The real test — cross-user isolation (empirical, stronger than reading policies).** Sign in as
+      test user A, and with A's token (anon/authenticated key — NOT the service key) try to read and write
+      user B's data: `select * from projects;` returns **only A's** rows, and an update to one of B's rows
+      is **rejected**. Repeat for `profiles` / `payments`.
+- [ ] **`profiles.plan` can't be self-escalated.** With A's token, `update profiles set plan='premium'
+      where id = <A>` must either be rejected or be irrelevant (the server no longer trusts `profiles.plan`
+      after the Phase-0 fix — confirm both: the code change is deployed AND the column isn't a backdoor).
+- [ ] **Service-role key is server-only.** It must never reach the browser bundle:
+      `grep -r "service_role" .next/static` (in the built web) finds nothing, and the key lives only in
+      Secret Manager — never in `NEXT_PUBLIC_*`, never in git.
+- [ ] **Storage is private.** The `exports` bucket is `public = false`; files are served via signed URLs,
+      and the `storage.objects` read policy is scoped to the user's own folder (`{user_id}/…`).
+
+> Re-run this whole block whenever a table or policy changes, and once more just before public launch.
 
 ## 8. Smoke test
 ```bash
