@@ -39,15 +39,17 @@ The web calls the engine with `Authorization: Bearer ${EXTRACT_SERVICE_TOKEN}` (
 Cloud Run ID token. Therefore you **cannot** deploy the engine `--no-allow-unauthenticated`
 (Cloud Run's IAM layer would reject the web's token-only calls before they reach the app).
 
-**For the beta, pick one:**
-- **B1 (recommended, simplest):** engine `--ingress internal --allow-unauthenticated`. Internal
-  ingress blocks the public internet; the app's `EXTRACT_SERVICE_TOKEN` is the auth. Requires the
-  web to reach the engine over internal routing — add a **Serverless VPC connector** on the web
-  service (`--vpc-connector` + `--vpc-egress all-traffic`) so its egress to the engine stays internal.
-- **B2 (no VPC connector):** engine `--ingress all --allow-unauthenticated`. The engine URL is
-  publicly reachable but **token-gated** (fail-closed: unset token ⇒ 503; a 32-byte token is
-  infeasible to brute, compare is constant-time). Acceptable for a short invite beta; tighten to
-  B1 or ID-tokens before public launch.
+**Decision: B1 selected — hide the engine.** ✅
+- **B1 (chosen — strongest):** engine `--ingress internal --allow-unauthenticated`. Internal
+  ingress blocks the public internet; the app's `EXTRACT_SERVICE_TOKEN` is the auth. **Cost:** the
+  web must reach the engine *through the VPC*, so it needs a **Serverless VPC connector** +
+  `--vpc-egress all-traffic`; and because then *all* the web's egress routes through the VPC, a
+  **Cloud NAT** so it can still reach Supabase/Stripe on the public internet. One-time ~15-min
+  setup — commands in **step 4b**.
+- **B2 (not chosen — simpler fallback):** engine `--ingress all --allow-unauthenticated`, no
+  VPC/NAT. The engine URL is publicly reachable but **token-gated** (fail-closed: unset token ⇒
+  503; a 32-byte token is infeasible to brute, compare is constant-time). Faster to stand up; keep
+  it as the fallback if the VPC/NAT setup proves fiddly on the day.
 
 Either way **`EXTRACT_SERVICE_TOKEN` must be set** — after the Phase-0 auth fix the engine fails
 closed (503) in any non-`development` environment without it. Before public launch, the proper
@@ -147,9 +149,28 @@ _API_URL=https://<web-url>
 > `<web-url>` is chicken-and-egg: deploy once to learn the URL, then rebuild with the real
 > `_SITE_URL` / `_API_URL`, or map a custom domain up front and use that.
 
+## 4b. Network for B1 — VPC connector + Cloud NAT  (one-time, ~15 min)
+B1 hides the engine (internal ingress), so the web reaches it *through the VPC*, and the web's
+other egress (Supabase, Stripe) then needs a NAT to reach the internet.
+```bash
+gcloud services enable vpcaccess.googleapis.com compute.googleapis.com
+
+# Serverless VPC Access connector (same region; a free /28 in the default VPC)
+gcloud compute networks vpc-access connectors create startuplan-conn \
+  --region europe-west1 --range 10.8.0.0/28
+
+# Cloud NAT so the web's all-traffic egress still reaches the public internet
+gcloud compute routers create startuplan-router \
+  --region europe-west1 --network default
+gcloud compute routers nats create startuplan-nat \
+  --router startuplan-router --region europe-west1 \
+  --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges
+```
+> Uses the `default` VPC. The connector's `/28` must not overlap an existing subnet.
+
 ## 5. Deploy the WEB (public)
 Runtime server env (secrets + the internal engine URL). `NEXT_PUBLIC_*` are already baked.
-Add the VPC connector here only if you chose **B1**.
+The **B1** VPC connector + egress are included below (from step 4b).
 ```bash
 gcloud run deploy startuplan-web \
   --image "$IMG" \
@@ -158,8 +179,8 @@ gcloud run deploy startuplan-web \
   --min-instances 0 --max-instances 2 \
   --cpu 1 --memory 512Mi \
   --set-env-vars ENGINE_EXTRACT_URL=<engine-internal-url>,STRIPE_TAX_ENABLED=false,ALLOW_TRIAL_UPGRADES=false,STRIPE_PRICE_PLAN=price_...,STRIPE_PRICE_BANKABLE=price_...,STRIPE_PRICE_ADVISOR=price_... \
-  --set-secrets SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,TURNSTILE_SECRET_KEY=TURNSTILE_SECRET_KEY:latest,EXTRACT_SERVICE_TOKEN=EXTRACT_SERVICE_TOKEN:latest
-  # B1 only: --vpc-connector <connector> --vpc-egress all-traffic
+  --set-secrets SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,TURNSTILE_SECRET_KEY=TURNSTILE_SECRET_KEY:latest,EXTRACT_SERVICE_TOKEN=EXTRACT_SERVICE_TOKEN:latest \
+  --vpc-connector startuplan-conn --vpc-egress all-traffic    # B1: route egress through the VPC to reach the internal engine
 ```
 - **`ALLOW_TRIAL_UPGRADES`**: leave **off** (default). Turn on **only** if the beta needs the
   no-payment self-upgrade for testers; purge trial grants before public.
