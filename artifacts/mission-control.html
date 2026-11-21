@@ -1,0 +1,530 @@
+<title>Mission Control</title>
+<style>
+  /* Layout: a service control centre — "this week" focus + live site status up top,
+     a filterable board of service cards (each with status, tickable needs, buttons
+     into the real tool), and a persistent updates log. State: per-viewer bits in
+     localStorage; live status + updates in the shared db. */
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f4; --fg:#141b24; --muted:#5a6b78;
+    --line:#dde3e9; --accent:#0e7c6b; --accent-weak:#d6ece7;
+    --live:#1f8a54; --live-bg:#dff2e6; --setup:#9a6612; --setup-bg:#f8edd7; --todo:#5a6b78; --todo-bg:#e7ecf0;
+    --crit:#b4332a; --crit-bg:#fae6e3;
+    --shadow:0 1px 2px rgba(20,27,36,.06), 0 2px 8px rgba(20,27,36,.04);
+    --font-sans:"IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#10151b; --surface:#171e26; --surface-2:#1e2732; --fg:#e7edf2; --muted:#93a3b2;
+    --line:#2a3542; --accent:#2bb39c; --accent-weak:#13302b;
+    --live:#4cc07f; --live-bg:#15301f; --setup:#e0a84f; --setup-bg:#34290f; --todo:#8699a8; --todo-bg:#212b36;
+    --crit:#e87c6d; --crit-bg:#361f1c;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25); color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#10151b; --surface:#171e26; --surface-2:#1e2732; --fg:#e7edf2; --muted:#93a3b2;
+    --line:#2a3542; --accent:#2bb39c; --accent-weak:#13302b;
+    --live:#4cc07f; --live-bg:#15301f; --setup:#e0a84f; --setup-bg:#34290f; --todo:#8699a8; --todo-bg:#212b36;
+    --crit:#e87c6d; --crit-bg:#361f1c;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25); color-scheme:dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--fg); font-family:var(--font-sans); font-size:15px; line-height:1.5; margin:0;}
+  .wrap{max-width:1080px; margin:0 auto; padding-inline:16px;}
+  h1,h2,h3{text-wrap:balance; margin:0;}
+  a{color:var(--accent);}
+  .eyebrow{font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600;}
+  code{font-family:var(--font-mono); font-size:.85em; background:var(--surface-2); padding:1px 5px; border-radius:4px;}
+
+  header.top{border-bottom:1px solid var(--line); padding-block:22px 16px;}
+  h1{font-size:clamp(22px,3vw,30px); font-weight:650; letter-spacing:-.015em; margin:4px 0 6px;}
+  .lede{color:var(--muted); font-size:14.5px; max-width:70ch;}
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin-top:16px;}
+  .tile{background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:13px 14px; box-shadow:var(--shadow); text-decoration:none; color:inherit; display:block;}
+  .tile .k{font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted);}
+  .tile .v{font-family:var(--font-mono); font-size:22px; font-weight:600; margin-top:4px; line-height:1.1;}
+  .tile .s{font-size:12px; color:var(--muted); margin-top:3px;}
+  .tile.link:hover{border-color:var(--accent);}
+  .companions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
+  .companions a{font-size:12.5px; text-decoration:none; border:1px solid var(--line); background:var(--surface); color:var(--muted); padding:6px 11px; border-radius:99px;}
+  .companions a:hover{border-color:var(--accent); color:var(--accent);}
+
+  section.block{padding-block:20px;}
+  .section-title{font-size:12px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:10px;}
+  .section-title::after{content:""; flex:1; height:1px; background:var(--line);}
+  .section-title .sync{font-family:var(--font-mono); font-size:10.5px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted);}
+
+  /* This week */
+  .week{background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:12px; box-shadow:var(--shadow); padding:14px 16px;}
+  .week ol{margin:8px 0 0; padding-left:20px; display:grid; gap:7px;}
+  .week li{font-size:13.5px;}
+  .week li b{font-weight:650;}
+  .week .tag{font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--crit); border:1px solid var(--crit-bg); background:var(--crit-bg); padding:1px 5px; border-radius:4px; margin-left:6px;}
+  .week .tag.ok{color:var(--live); border-color:var(--live-bg); background:var(--live-bg);}
+
+  /* Live status */
+  .live-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:15px 16px;}
+  .live-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .live-head .site{font-weight:650; font-size:15px;}
+  .sev{font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:3px 9px; border-radius:99px;}
+  .sev.ok{background:var(--live-bg); color:var(--live);} .sev.attention{background:var(--setup-bg); color:var(--setup);} .sev.problem{background:var(--crit-bg); color:var(--crit);} .sev.none{background:var(--todo-bg); color:var(--todo);}
+  .live-report{font-size:13.5px; color:var(--fg); margin:10px 0;}
+  .metrics{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:9px;}
+  .metric{background:var(--surface-2); border-radius:9px; padding:9px 11px;}
+  .metric .ml{font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted);}
+  .metric .mv{font-family:var(--font-mono); font-size:15px; font-weight:600; margin-top:2px;}
+  .live-foot{font-family:var(--font-mono); font-size:11px; color:var(--muted); margin-top:10px;}
+
+  /* Filter */
+  .filterbar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .filterbar button{font:inherit; font-size:12.5px; cursor:pointer; border:1px solid var(--line); background:var(--surface); color:var(--muted); padding:5px 11px; border-radius:99px;}
+  .filterbar button[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600;}
+  :root[data-theme="dark"] .filterbar button[aria-pressed="true"], :root:not([data-theme="light"]) .filterbar button[aria-pressed="true"]{color:#08140f;}
+
+  .group{margin-top:20px;}
+  .group h2{font-size:12px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:10px;}
+  .group h2::after{content:""; flex:1; height:1px; background:var(--line);}
+  .cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:11px;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); overflow:hidden;}
+  .card.ph{border-style:dashed;}
+  .card.hidden{display:none;}
+  .chead{display:flex; align-items:center; gap:10px; padding:13px 14px; cursor:pointer;}
+  .chead .nm{font-weight:650; font-size:14.5px; flex:1; min-width:0;}
+  .chead .chev{color:var(--muted); transition:transform .2s; flex:none;}
+  .card.open .chev{transform:rotate(90deg);}
+  .pill{font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:3px 9px; border-radius:99px; cursor:pointer; white-space:nowrap; border:1px solid transparent;}
+  .pill.live{background:var(--live-bg); color:var(--live);} .pill.setup{background:var(--setup-bg); color:var(--setup);} .pill.todo{background:var(--todo-bg); color:var(--todo);}
+  .pill:hover{border-color:currentColor;}
+  .cbody{border-top:1px solid var(--line); padding:13px 14px; display:none;}
+  .card.open .cbody{display:block;}
+  .cbody .what{font-size:13px; color:var(--muted); line-height:1.5;}
+  .cbody .needttl{font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:11px 0 6px;}
+  .chk{display:flex; gap:8px; align-items:flex-start; font-size:12.5px; margin:5px 0; line-height:1.4; cursor:pointer;}
+  .chk input{margin-top:2px; width:15px; height:15px; accent-color:var(--accent); flex:none; cursor:pointer;}
+  .chk input:checked + span{color:var(--muted); text-decoration:line-through;}
+  .btns{display:flex; flex-wrap:wrap; gap:7px; margin-top:12px;}
+  .btns a{font-size:12px; font-weight:600; text-decoration:none; background:var(--accent); color:#fff; padding:6px 11px; border-radius:7px;}
+  :root[data-theme="dark"] .btns a, :root:not([data-theme="light"]) .btns a{color:#06110d;}
+  .btns a.sec{background:var(--surface-2); color:var(--fg); border:1px solid var(--line);}
+  .btns a:hover{opacity:.9;}
+  .note{margin-top:11px;}
+  .note label{font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; display:block; margin-bottom:4px;}
+  .note textarea{width:100%; min-height:40px; resize:vertical; font:inherit; font-size:12.5px; background:var(--surface-2); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:7px 9px;}
+
+  /* Updates board */
+  .updates{display:grid; gap:9px;}
+  .update{background:var(--surface); border:1px solid var(--line); border-radius:11px; box-shadow:var(--shadow); padding:12px 14px;}
+  .update .ut{font-weight:650; font-size:14px;}
+  .update .um{font-family:var(--font-mono); font-size:10.5px; color:var(--muted); margin-top:1px;}
+  .update .ub{font-size:13px; color:var(--muted); margin-top:6px; line-height:1.5;}
+  .update .ukind{font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); border:1px solid var(--accent-weak); background:var(--accent-weak); padding:1px 5px; border-radius:4px; margin-left:8px;}
+  :root[data-theme="dark"] .update .ukind, :root:not([data-theme="light"]) .update .ukind{color:var(--accent);}
+  .addform{background:var(--surface-2); border:1px solid var(--line); border-radius:11px; padding:12px 14px; margin-bottom:12px;}
+  .addform input, .addform textarea{width:100%; font:inherit; font-size:13px; background:var(--surface); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:7px 9px; margin-bottom:7px;}
+  .addform button{font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; border:none; padding:7px 14px; border-radius:7px;}
+  :root[data-theme="dark"] .addform button, :root:not([data-theme="light"]) .addform button{color:#06110d;}
+  .empty{font-size:12.5px; color:var(--muted); padding:10px 0;}
+
+  .howto{margin-top:14px; padding:11px 14px; font-size:12.5px; color:var(--muted); background:var(--surface-2); border:1px solid var(--line); border-radius:10px; line-height:1.5;}
+  .howto b{color:var(--fg);}
+  footer.foot{color:var(--muted); font-size:12px; padding-block:22px 40px; border-top:1px solid var(--line); margin-top:24px;}
+  .upd{font-family:var(--font-mono); font-size:11px; opacity:.85;}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">StartUPlan</div>
+    <h1>Mission Control</h1>
+    <p class="lede">One place to see every service, its status and what you need — jump into the real tool from any card, or tell Claude in the chat to do it.</p>
+    <div id="updatedLine" style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted);margin-top:8px;"></div>
+    <div class="tiles">
+      <div class="tile"><div class="k">Days to launch</div><div class="v" id="days">—</div><div class="s">target 15 Dec 2026</div></div>
+      <a class="tile link" href="https://startuplan.ai" target="_blank" rel="noopener noreferrer"><div class="k">Live site</div><div class="v" style="font-size:15px">startuplan.ai ↗</div><div class="s">Streamlit (temporary)</div></a>
+      <a class="tile link" id="readyTile" href="#" target="_blank" rel="noopener noreferrer"><div class="k">Launch readiness</div><div class="v" style="font-size:15px">Open checklist ↗</div><div class="s">blockers &amp; progress</div></a>
+      <a class="tile link" href="https://console.cloud.google.com/billing" target="_blank" rel="noopener noreferrer"><div class="k">Cost</div><div class="v" style="font-size:15px">Billing ↗</div><div class="s">all services below</div></a>
+    </div>
+    <div class="companions" id="companions"></div>
+    <div class="howto">
+      <b>How this works:</b> click a card to open it — see what you need (tickable), set its status (click the coloured dot), and use the buttons to open the real console. The <b>Live status</b> + <b>Updates</b> below are shared and persist. To actually <b>do</b> something, tell Claude in the chat. Your ticks, notes, open cards &amp; filter save in this browser.
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="block">
+    <div class="section-title">This week — wk 7 (20 Nov)</div>
+    <div class="week">
+      <ol>
+        <li><b>Phone, iPad &amp; web dashboards — polish complete ✓.</b> Device-class layouts (purpose-built iPhone shell · iPad TabletLayout · desktop build tool), full phone↔web i18n convergence (shared keys across all four locales, an in-place language switch that keeps the current view + open sheet, aria-labels routed through the same keys), unified number formatters + chart geometry, and per-metric parity so phone and web read the same engine DTO and never recompute. <span class="tag ok">apps ready</span></li>
+        <li><b>Launch extended to 15 Dec (wk 11).</b> With the apps essentially feature-complete, the date moves out to give the infra/deploy track and a private beta real room rather than a scramble. <span class="tag ok">more run-in</span></li>
+        <li><b>Company set up ✓ · VAT registered ✓.</b> The two longest-lead legal blockers are cleared. <b>Still open (external):</b> the <b>trading-name (business-name) registration request</b> and the <b>business-bank-account meeting</b> to open the account — the bank is the final piece before live payouts. <span class="tag">bank gates live payouts</span></li>
+        <li><b>Payments — built in Stripe test mode ✓.</b> Checkout → webhook → <code>tier_grants</code>, cancel/manage portal, upgrade credit and a country-aware VAT preview all work end-to-end on test keys. With the entity + VAT now done, go-live needs only the bank account + swapping test→live keys. <span class="tag ok">test mode done</span></li>
+        <li><b>Email stack live ✓ · Supabase RLS baseline + drift-guard CI ✓.</b> Inbound forwarding (Cloudflare) + outbound auth/transactional via Resend; every table RLS-on + owner-scoped with a build-failing drift test. Pre-launch RLS re-audit on prod is still the go/no-go gate.</li>
+        <li><b>Next up:</b> provision Google Cloud (project · Secret Manager · Artifact Registry) and start the containerise + deploy track now the apps are code-complete.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Live status <span class="sync" id="syncline"></span></div>
+    <div class="live-card" id="liveCard">
+      <div class="empty">Connecting to live status…</div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Services</div>
+    <div class="filterbar" id="filterbar">
+      <button data-filter="all" aria-pressed="true">All</button>
+      <button data-filter="needs">Needs me</button>
+      <button data-filter="todo">To do</button>
+      <button data-filter="setup">Setup</button>
+      <button data-filter="live">Live</button>
+    </div>
+    <div id="board"></div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Updates</div>
+    <div id="addWrap"></div>
+    <div class="updates" id="updates"><div class="empty">Loading updates…</div></div>
+  </section>
+
+</main>
+
+<footer class="foot wrap" style="padding-inline:0">
+  <span class="upd" id="stamp"></span> · A launchpad &amp; status board. Console links open in a new tab (sign in as senatoriavita@gmail.com). Live status &amp; updates are written by Claude / your ops agent.
+</footer>
+
+<script>
+const LAUNCH = new Date('2026-12-15T00:00:00');
+const LAST_UPDATED = '2026-11-21T11:56:33Z';  // exact instant; rendered in the viewer's local time
+function fmtUpdated(iso){
+  try{
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {day:'numeric', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit', timeZoneName:'short'});
+  }catch(e){ return iso; }
+}
+const READINESS = 'https://claude.ai/artifact/YXKY3AbDTfHgsXbyX7bjon';
+const TIMELINE  = 'https://claude.ai/artifact/EaSZbUPiVuLd3xuD5NPymg';
+const BLUEPRINT = 'https://claude.ai/artifact/B6JxiA9hNECLgMkBNkaaTY';
+const STORE = 'slp-mission-control-v2';
+
+const GROUPS = [
+  {g:'Frontend · "Google front"', items:[
+    {id:'fe-current', name:'Live site — Streamlit', status:'live',
+      what:'startuplan.ai today is the Streamlit app on Cloud Run (project startuplan-prod). Functional but temporary — not the final UI.',
+      need:['It works, but it is the placeholder look','Replace it with the Next.js web app','Retire after pre-launch is live: clean cutover → keep warm ~1–2 wk as a rollback net → shut down (closes SEC-2)'],
+      links:[['Open site','https://startuplan.ai'],['Cloud Run service','https://console.cloud.google.com/run/detail/europe-west1/startuplan/metrics?project=startuplan-prod',1],['Logs','https://console.cloud.google.com/logs/query?project=startuplan-prod',1]]},
+    {id:'fe-final', name:'Final web app — Next.js', status:'setup',
+      what:'The polished dashboard that will replace Streamlit as the public site. Feature build is complete — dashboard KPI band + live net-CF chart, the Export Center dialog and the Project Assistant all shipped, and the phone/mobile + iPad device views are done (device-class layouts, full phone↔web i18n convergence + in-place language switch, shared chart geometry, per-metric parity). Still to deploy to Cloud Run.',
+      need:['Phone + iPad device views — complete ✓ (device-class layouts · i18n · parity)','Deploy the Next.js app to Cloud Run (output:standalone + Dockerfile)','Point startuplan.ai at it','Say to Claude: “deploy the web app”'],
+      links:[['Web repo','https://github.com/senatoreavita/StartUPlan_Web',1],['Cloud Run (prod)','https://console.cloud.google.com/run?project=startuplan-prod',1]]},
+  ]},
+  {g:'Backend · "Google back"', items:[
+    {id:'be-engine', name:'Engine API — FastAPI', status:'setup',
+      what:'The Python financial engine (NPV / IRR / exports / assistant). The Cloud Run container is BUILT ✓ (uvicorn Dockerfile; Cyrillic PDF font added) — it just has not been deployed yet; runs locally today. Endpoints: /plan/export (Excel/PDF/PPT/guide) and /plan/assistant (grounded Q&A + proposals).',
+      need:['FastAPI Dockerfile (uvicorn service.api:app) ✓ written','Deploy to Cloud Run with --no-allow-unauthenticated (Cloud Run IAM) — the web calls it with a Google ID token + X-Extract-Token backstop; grant the web SA roles/run.invoker','Install python-pptx (PPT export) + set OPENAI_API_KEY (assistant) on the service','Say to Claude: “deploy the engine”'],
+      links:[['Core repo','https://github.com/senatoreavita/startuplan-core',1],['Cloud Run (prod)','https://console.cloud.google.com/run?project=startuplan-prod',1]]},
+    {id:'be-infra', name:'GCP infra', status:'setup',
+      what:'Artifact Registry (images), Secret Manager (keys), Cloud Build (builds) — the plumbing your services deploy through.',
+      need:['Secret Manager holds API keys (never in code)','Artifact Registry holds container images'],
+      links:[['Secret Manager','https://console.cloud.google.com/security/secret-manager?project=startuplan-ops',1],['Artifact Registry','https://console.cloud.google.com/artifacts?project=startuplan-ops',1],['Cloud Build','https://console.cloud.google.com/cloud-build/builds?project=startuplan-ops',1]]},
+    {id:'capacity', name:'Scale & capacity — measured', status:'setup',
+      what:'Measured on the real engine (6 Oct 2026). Fixed cost ~67 MiB/instance; then a business-plan COMPUTE is ~1–2 ms and <0.1 MiB, an Excel export ~260 ms / ~2 MiB, a PDF ~75 ms. Memory is NOT the limit — a 512 MiB–1 GiB instance holds dozens of concurrent requests; size by CPU, not RAM. The only heavy job is a 10k-trial Monte Carlo (~13.5 s of CPU). Verdict: 1000 users generating plans holds easily. The real ceilings are (1) the LLM rate limit for AI import + the assistant and (2) 10k Monte Carlo if many run at once — so queue those two.',
+      need:[
+        'Deploy the engine on uvicorn (service.api:app) — not Streamlit',
+        'Instance: 1 GiB RAM + 1 vCPU (memory is not the constraint — CPU is)',
+        'Cloud Run concurrency ~8; raise max-instances to ~300 for spike headroom',
+        'Queue / make async the 2 slow paths: 10k Monte Carlo + AI extract',
+        'Supabase: use the pooled (pgBouncer) connection string, not direct',
+        'LLM: request a higher rate-limit tier + cache extraction results'],
+      links:[['Cloud Run (prod)','https://console.cloud.google.com/run?project=startuplan-prod',1],['Ops blueprint',BLUEPRINT,1]]},
+    {id:'jobqueue', name:'Job queue — 2 slow paths', status:'todo',
+      what:'Makes the only two slow operations async so a traffic spike drains smoothly instead of fighting for resources. Fast paths (compute ~1–2 ms, export ~260 ms) stay synchronous. Flow: web POSTs a job → engine writes a Supabase jobs row + creates a Cloud Task → returns a job_id instantly → a worker endpoint runs it → the browser polls the row (or Supabase Realtime) and renders when done. The two Cloud Tasks queues are the throttles: montecarlo (rate = worker vCPUs) and extract (rate < the LLM limit, with retry/backoff). The extract enqueue also checks an input_hash cache so a duplicate description returns instantly at €0.',
+      need:[
+        'Create a Supabase jobs table (id, user_id, kind, status, input_hash, payload, result, error, progress) + RLS',
+        'Engine POST /jobs — validate, cache-check (extract), insert queued row, create Cloud Task, return 202 {job_id}',
+        'Engine POST /jobs/run — worker target (Cloud Tasks only, token-auth); run compute_monte_carlo / extract_plan_input; write result; idempotent',
+        'Two Cloud Tasks queues: queue-montecarlo (rate = vCPUs) + queue-extract (rate < LLM limit, retry+backoff)',
+        'Web: on submit show “working…”, poll GET /jobs/{id} every ~2s or subscribe via Supabase Realtime; render/download on done',
+        'Only queue the 2 slow paths — leave /plan/compute & /plan/export synchronous'],
+      links:[['Cloud Tasks','https://console.cloud.google.com/cloudtasks?project=startuplan-prod',1],['Supabase','https://supabase.com/dashboard/projects',1]]},
+    {id:'sot', name:'Single source of truth — scenario & risk config', status:'setup',
+      what:'One root cause behind every “the Excel doesn’t match the UI” report: the scenario levers, Monte-Carlo settings and Sensitivity ranges lived ONLY in the browser (localStorage), never saved with the project — so /plan/compute (browser levers) and /plan/export (hard-coded defaults) read DIFFERENT numbers. Example found 6 Oct: downside Excel = −19.8M (engine default −10% price) vs UI = −30.2M (browser override −28% price). FIXED for scenario levers (7 Oct, code-complete on branches session_2026_10_07 / dashboard_2026_10_07): the project is now the only source of truth, flowing one way UI → engine → Excel. Defaults are seeded ONCE from the engine at fill-up; after that every surface reads the project’s own stored values and the Excel holds no defaults. No financial maths moved to the browser — only the setting now lives with the project instead of the browser. Monte-Carlo + Sensitivity still to do (same pattern).',
+      need:[
+        'DONE ✓ engine serves defaults at fill-up (GET /plan/scenario-defaults) — the one place defaults enter',
+        'DONE ✓ new column project_inputs.scenario_config stores the levers with the project',
+        'DONE ✓ UI reads/writes the project’s stored config (not localStorage); legacy projects seeded on first open',
+        'DONE ✓ /plan/export accepts levers; the Excel builder writes the project’s actual values — DEFAULT_* removed from the export path',
+        'DONE ✓ Monte Carlo persistence (7 Oct): the MC recipe (per-variable distributions incl. skew, opted-in levers, input correlations, trial count) is stored WITH the project (project_inputs.mc_config), not the browser — NEVER the 1k/10k trials. FRESH EACH RUN kept (a new random seed every run, so the distribution / average NPV·IRR legitimately differ run-to-run, as wanted — no seed stored). The section migrates this browser’s old localStorage settings into the project once on first open. Engine MC unchanged (already professional: real re-simulation, PERT/left-right-skew/lognormal/beta, Iman–Conover rank correlation)',
+        'DONE ✓ Sensitivity needs NO persistence: its tornado is a FIXED ±10%/±2pp shock derived entirely from the plan (already the single source of truth) — there is no user config to store, so an exported tornado matches the screen automatically',
+        'DEPLOY — order: (1) deploy the engine, (2) run BOTH Supabase migrations (scenario_config + mc_config columns), (3) deploy the web',
+        'VERIFY after deploy: same project → UI, engine and Excel return identical NPV / revenue for Base, Down, Up; MC config survives reopen (run stays fresh)',
+        'DONE ✓ two Monte Carlo sampling TYPES (7 Oct): a second "Latin Hypercube" button sits next to Run. "random" (default) = plain MC; "lhs" = even coverage → smoother, more stable percentiles/tornado at the same trial count. Per-run choice (which button), still fresh each run. Engine is numpy-only (no scipy): oversample the SAME distribution, sort, take one real value per equal-probability rank-block → identical marginal, just arranged evenly (works for every distribution incl. PERT/skew). CSV/XLSX download reuses the run’s seed + method so the file matches the screen. Optional "pin this run" (one saved seed for a frozen bank copy) still LATER',
+        'LATER — Excel Risk Assessment page: a STATIC representation (values + native charts: NPV/IRR histogram, P5–P95, prob>0, prob>hurdle, tornado), NOT linked to the model (Monte Carlo cannot be live spreadsheet formulas). On export the UI hands its ALREADY-COMPUTED MC/sensitivity result straight into the export (no re-run) → Excel = UI by construction, zero extra compute. Stamp the page with iterations / method (and seed only if pinned)',
+        'DONE ✓ Download a SELECTED Monte Carlo case (7 Oct): a "Download case {n} (Excel)" button beside "Extract the model with this case" sends the case’s PRECISE sampled levers to /plan/export; the engine applies them and builds the FULL single-scenario model — Inputs, Growth, Capex, Depreciation, Revenue/COGS/Opex/Staff, IA, KPIs, Loans AND the financial statements — for that ONE case, WITHOUT the up/down columns, titled by the case number. New scenarios_enabled override decouples scenario-stacking from the tier (so statements still render); the 11 duplicated scenario gates are now one scenarios_on() source of truth. Handles per-case variable differences (absent levers stay at base; out-of-range → 422). Default export byte-identical',
+        'LATER — "Save this case" as a scenario: persist a chosen case’s levers as the project’s scenario (reuses scenario_config) so it is permanent / reproducible, not just a one-off snapshot of the current run'],
+      links:[['Compute+export parity',BLUEPRINT,1]]},
+  ]},
+  {g:'Product features · exports & assistant', items:[
+    {id:'export-center', name:'Export Center — Excel / PDF / PPT / guide', status:'setup',
+      what:'BUILT this week ✓. The "Export model" dialog lets the user pick a format: Excel (with a scenario scope — base only, or all 3 cases), a business-plan PDF, a pitch-deck PPT, or a how-to-read guide. Engine exporters (build_sme_excel/pdf/pptx/guide_export) + a web dialog + /api/export routing + tests. Code-complete; two deploy prerequisites remain.',
+      need:['python-pptx installed on the engine (the PPT path 502s without it)','Business-plan narrative uses a template + optional OpenAI polish (needs OPENAI_API_KEY)','LATER: per-section include/exclude manifest + single-table extraction','Deploy the engine + web to pick it up live'],
+      links:[['Export Center note','https://claude.ai/artifact/WJD9EqcLCm6GvQWirwG9ks',1],['Web repo','https://github.com/senatoreavita/StartUPlan_Web',1]]},
+    {id:'assistant', name:'Project Assistant — grounded in-app chat', status:'setup',
+      what:'BUILT this week ✓ (Phase 1–4). A floating, draggable/resizable chat scoped to ONE project: it answers questions grounded in that plan (with citations) and proposes model changes you Apply → recompute. Proposals are validated against an editable-field whitelist (addressed by name, never index — no off-catalog write lands); small/large model tiers; a per-user cost meter + rate/daily caps; a fail-closed scope guard. Engine /plan/assistant + web /api/assistant + tests. The LLM orchestrates, the engine computes — every number stays engine-authoritative.',
+      need:['Set OPENAI_API_KEY on the engine — without it the assistant fails closed ("not available")','pip install openai on the engine + restart','Make the per-user rate/daily caps durable (shared with the app rate-limiter move)','LATER: AI credits / packs metering per the Pricing Model; BYOK on the Advisor tier'],
+      links:[['AI copilot spec','https://github.com/senatoreavita/StartUPlan_Web/blob/dashboard_2026_10_25/docs/ai-copilot.md',1],['Pricing Model','https://claude.ai/artifact/1UiZ6gxjLqsLthjjuUFAaL',1]]},
+  ]},
+  {g:'Data & auth · Supabase', items:[
+    {id:'supabase', name:'Supabase', status:'setup',
+      what:'Database, user authentication, and the tier_grants entitlement table. Also sends your auth emails today (now routed through Resend SMTP).',
+      need:['Confirm the production project (EU region)','✓ RLS baseline audit DONE — every table RLS-on + owner-scoped; storage INSERT (F1) fixed in prod; service-role key · storage writes · SECURITY DEFINER · Realtime all verified','✓ RLS-drift CI assertion DONE — a static test fails the build if a new table ships RLS-off or non-owner-scoped','Re-audit RLS on prod as a go/no-go gate before launch','Enable backups (PITR) + run one restore drill — procedure now documented in BACKUPS.md; drill still to run','Realtime is NOT used today (verified) — IF it is ever enabled (e.g. for the job queue), add RLS on realtime.messages + confirm channel authorization'],
+      links:[['Supabase dashboard','https://supabase.com/dashboard/projects']]},
+  ]},
+  {g:'Payments · Stripe / Paddle', items:[
+    {id:'payments', name:'Billing — Stripe (test mode)', status:'setup',
+      what:'Checkout + subscriptions BUILT and verified end-to-end in Stripe TEST mode. Hosted Checkout from the upgrade modal, a signature-verified webhook that is the only writer of tier_grants, cancel/manage portal, upgrade credit, "renews in N days", and a country-aware VAT preview (Stripe Tax wired). The entity + VAT are now done ✓ — go-live needs only the business bank account + live keys.',
+      need:['Decision done ✓ — Stripe','Products / prices → tiers created from the catalog ✓','Checkout + webhook → tier_grants built & test-verified ✓','Cancel/manage portal + upgrade credit + VAT preview ✓','Legal entity ✓ + VAT registered ✓','GO-LIVE: open the business bank account, then swap test→live keys + register the live webhook secret (docs/deploy.md)','Switch on Stripe Tax now the VAT number is in hand'],
+      links:[['Stripe dashboard','https://dashboard.stripe.com'],['Paddle','https://vendors.paddle.com',1]]},
+  ]},
+  {g:'Email · Resend & inbound', items:[
+    {id:'resend', name:'Outbound email — auth + transactional', status:'live',
+      what:'WORKING ✓. Outbound mail via Resend: the domain is verified (SPF/DKIM/DMARC), Supabase Auth now sends confirm/reset/magic-link through Resend as custom SMTP (not the rate-limited shared sender), and Gmail "send as" lets you reply as admin@. Transactional billing mail (receipts, invoices, dunning) hooks in once payments go live.',
+      need:['Domain verified in Resend (SPF/DKIM/DMARC) ✓','Supabase → Auth → Email → SMTP pointed at Resend ✓','Gmail "Send mail as" admin@ ✓','Brand the Supabase auth email templates','App → Resend API for receipts / invoices / dunning (with payments)','Keep the Resend API key server-side only'],
+      links:[['Resend dashboard','https://resend.com/overview'],['Supabase Auth templates','https://supabase.com/dashboard/project/_/auth/templates',1]]},
+    {id:'inbound-email', name:'Inbound mail — admin@ / support@', status:'live',
+      what:'WORKING ✓. Cloudflare Email Routing forwards admin@ / support@ / privacy@ / hello@ on startuplan.ai to your real inbox (MX records set), so the legal contact address and all the onboarding mail (incorporation, bank, VAT, Stripe) land with you. Replies go out as the aliased address via Gmail send-as.',
+      need:['Cloudflare Email Routing — MX records on startuplan.ai ✓','Forward admin@ / support@ / privacy@ / hello@ → senatoriavita@gmail.com ✓','"Send mail as" in Gmail to reply AS admin@ ✓','Later: a real shared mailbox (Google Workspace / Zoho) if wanted'],
+      links:[['Cloudflare Email Routing','https://dash.cloudflare.com'],['Namecheap','https://ap.www.namecheap.com/domains/list/',1]]},
+  ]},
+  {g:'AI · OpenAI / Anthropic', items:[
+    {id:'ai', name:'LLM providers — spend control', status:'setup',
+      what:'OpenAI + Anthropic power the “Describe project” plan extraction AND the new Project Assistant (grounded Q&A + model-change proposals). Keys are active. Extraction defaults to the CHEAP tier (Haiku 4.5 / gpt-4o-mini) — roughly 10× cheaper than Opus. The assistant clamps model tier + output tokens server-side and caps per-user usage. The hard protection is still a spend cap set at each provider.',
+      need:[
+        'Extraction on the cheap tier (Haiku 4.5 / gpt-4o-mini) — done ✓',
+        'Assistant needs OPENAI_API_KEY on the engine to answer (fails closed without it)',
+        'Anthropic: set a MONTHLY usage limit (e.g. €30) in Console → Billing → Limits',
+        'Anthropic: add a budget email alert at ~50% and ~80%',
+        'OpenAI: set a HARD monthly cap + a soft (alert) cap in Settings → Limits',
+        'OpenAI: add a usage-alert email threshold',
+        'Keep both keys server-side only (never in browser/client code)',
+        'Watch cost per signup / per extraction / per assistant session as traffic grows'],
+      links:[['Anthropic limits','https://console.anthropic.com/settings/limits'],['Anthropic billing','https://console.anthropic.com/settings/billing',1],['OpenAI limits','https://platform.openai.com/settings/organization/limits',1],['OpenAI usage','https://platform.openai.com/usage',1]]},
+  ]},
+  {g:'Domain & DNS · Namecheap', items:[
+    {id:'domain', name:'startuplan.ai', status:'live',
+      what:'Your domain, registered at Namecheap. Expires 5 Aug 2029 (renewed).',
+      need:['Turn ON auto-renew (a lapsed domain takes the whole app down)','Keep DNS pointed at the live service'],
+      links:[['Namecheap domains','https://ap.www.namecheap.com/domains/list/']]},
+  ]},
+  {g:'Security · Cloudflare Turnstile', items:[
+    {id:'turnstile', name:'Bot defense — Turnstile', status:'setup',
+      what:'Cloudflare Turnstile — the “are you human?” check on login & signup. Confirmed wired into the web app (NEXT_PUBLIC_TURNSTILE_SITE_KEY + TURNSTILE_SECRET_KEY).',
+      need:['Wired into the app ✓ (site + secret keys present)','Verify you’re using PRODUCTION keys, not test keys — test keys always pass, so bots would get through','List Cloudflare in the Privacy Policy / sub-processors','Optional: put Cloudflare in front for CDN + WAF'],
+      links:[['Cloudflare dashboard','https://dash.cloudflare.com'],['Turnstile docs','https://developers.cloudflare.com/turnstile/',1]]},
+  ]},
+  {g:'Code & CI · GitHub', items:[
+    {id:'github', name:'GitHub — repos + CI', status:'live',
+      what:'Where ALL your code lives and is pushed from/to: two repos (web + engine), with automated tests and a secret scan on every change.',
+      need:['Keep main green','Push work on session branches, merge via PRs','Watch Actions minutes usage (see Cost)'],
+      links:[['Web repo','https://github.com/senatoreavita/StartUPlan_Web',1],['Core repo','https://github.com/senatoreavita/startuplan-core',1],['CI runs','https://github.com/senatoreavita/startuplan-core/actions',1]]},
+  ]},
+  {g:'Ops agent · Cloud Run watcher', items:[
+    {id:'watcher', name:'ops-watcher', status:'live',
+      what:'Your read-only watcher: checks startuplan.ai daily at 7am and has Claude summarise the health (it feeds the Live status above).',
+      need:['Running daily ✓','Later: add a Namecheap key so the .ai domain-expiry check goes green'],
+      links:[['The job','https://console.cloud.google.com/run/jobs/details/europe-west1/ops-watcher/triggers?project=startuplan-ops',1],['Blueprint',BLUEPRINT,1]]},
+  ]},
+  {g:'Legal & compliance · EU / Ireland', items:[
+    {id:'legal-entity', name:'Company & legal entity', status:'setup',
+      what:'Incorporate the company + business bank account + VAT — this GATES taking payments. Big progress: the company is set up ✓ and VAT is already registered ✓ (number in hand), clearing the two longest-lead blockers. Next week: file the trading-name (business-name) registration request, and the business-bank-account meeting to open the account — the bank is the last piece before live payouts.',
+      need:['Company incorporated ✓ done','VAT registered ✓ done (number in hand)','Next week: file the trading-name (business-name) registration request','Next week: business-bank-account meeting → open the account','Put the real entity + VAT details into the app’s terms'],
+      links:[['Irish CRO (register)','https://core.cro.ie',1],['Readiness → legal',READINESS,1]]},
+    {id:'legal-docs', name:'Terms, Privacy & GDPR', status:'todo',
+      what:'Finalise the legal documents and cover your GDPR duties before you take money or real users. (The EU withdrawal-rights / non-refundable-sales note is drafted — see the companion artifact.)',
+      need:['Finish Terms of Service (incl. the refund-policy TODO)','Privacy Policy + sub-processor list (OpenAI, Anthropic, Supabase, Google Cloud, Stripe, Resend, Cloudflare)','Cookie consent + a data-erasure / export path','Lawful basis + DPAs'],
+      links:[['Readiness → legal',READINESS,1]]},
+  ]},
+  {g:'Product & launch', items:[
+    {id:'pricing', name:'Pricing & tiers', status:'todo',
+      what:'Lock what tier_0 / 1 / 2 unlock — and only sell features that actually render. (Sensitivity is now Plan/tier_1; Monte Carlo stays Bankable/tier_2.)',
+      need:['Decide what each tier includes','Reconcile against the features catalog','Don’t charge for features that don’t render yet'],
+      links:[['Readiness',READINESS,1]]},
+    {id:'launch', name:'Launch plan & go/no-go', status:'setup',
+      what:'The plan to 15 Dec: i18n (EN/FR/UA/IT) done ✓, SEO, security review, staging + beta, go/no-go gate.',
+      need:['Follow the timeline','Code-complete ~23 Nov, soft launch ~7 Dec','Pass go/no-go before 15 Dec','Mobile = view & present, desktop = build: landing / auth / pricing usable at launch; then a mobile view/present mode + PWA (manifest · icons · splash · Serwist service worker, network-first for data · Lighthouse) in the run-in, after pre-launch and before 15 Dec'],
+      links:[['Timeline',TIMELINE,1],['Readiness',READINESS,1]]},
+  ]},
+  {g:'Monitoring & cost · all services', items:[
+    {id:'logs', name:'Logs & monitoring', status:'setup',
+      what:'Cloud Logging is on. Proper dashboards, uptime checks and alerts still to add.',
+      need:['Add uptime checks + alert policies','Turn on Error Reporting for both services'],
+      links:[['Logs','https://console.cloud.google.com/logs/query?project=startuplan-prod',1],['Monitoring','https://console.cloud.google.com/monitoring?project=startuplan-prod',1]]},
+    {id:'cost', name:'Cost monitoring — every service', status:'setup',
+      what:'One place to track spend across EVERY service. Set a budget + alert on each.',
+      need:['Google Cloud — Cloud Run, storage, builds, the agent','GitHub — Actions minutes / plan','Supabase — database plan','Stripe / Paddle — transaction fees','OpenAI + Anthropic — API usage','Resend — email volume','Namecheap — domain renewal','Cloudflare — plan (if paid)'],
+      links:[['GCP billing','https://console.cloud.google.com/billing',1],['GitHub billing','https://github.com/settings/billing',1],['Supabase','https://supabase.com/dashboard/project/_/settings/billing',1],['Stripe','https://dashboard.stripe.com/balance/overview',1],['OpenAI','https://platform.openai.com/usage',1],['Anthropic','https://console.anthropic.com/settings/billing',1],['Resend','https://resend.com/settings/billing',1],['Namecheap','https://ap.www.namecheap.com/domains/list/',1],['Cloudflare','https://dash.cloudflare.com',1]]},
+    {id:'ai-efficiency', name:'AI cost-efficiency roadmap', status:'setup',
+      what:'How to keep the LLM bill (plan extraction + assistant) low — in priority order. Extraction is output-heavy, so the big wins are the cheap model + caching the result, not negotiating pricing. Corporate/volume pricing from Anthropic & OpenAI only applies at steady spend of thousands/month, so revisit it later — not now.',
+      need:[
+        '1. Cheap model — Haiku 4.5 / gpt-4o-mini (≈10× cheaper than Opus) — done ✓',
+        '2. App-level result caching — hash the description, reuse the stored plan so identical re-runs cost €0 (biggest remaining win)',
+        '3. Set provider spend caps + alerts (see the LLM providers card)',
+        '4. Assistant: small model tier by default + server-clamped output tokens + per-user caps — done ✓',
+        '5. Enable Anthropic prompt caching on the system prompt (small, cheap win; OpenAI caches automatically)',
+        '6. Revisit corporate / committed-use pricing only once monthly spend is worth negotiating'],
+      links:[['OpenAI pricing','https://openai.com/api/pricing',1],['Anthropic pricing','https://www.anthropic.com/pricing',1]]},
+  ]},
+  {g:'Future services', items:[
+    {id:'ph-analytics', name:'+ Analytics (placeholder)', status:'todo', ph:1,
+      what:'A slot for product analytics when you add it (PostHog-EU, Plausible). Tell Claude and I’ll wire it in.',
+      need:['Privacy-friendly, consent-based','Signups, funnels, where users come from'], links:[]},
+    {id:'ph-status', name:'+ Status page (placeholder)', status:'todo', ph:1,
+      what:'A public “is the site up?” page for customers, later.',
+      need:['Could tie to the ops watcher'], links:[]},
+    {id:'ph-custom', name:'+ Add a service', status:'todo', ph:1,
+      what:'Any other service you start using — ask Claude to add a card for it here.',
+      need:['Say: “add <service> to Mission Control”'], links:[]},
+  ]},
+];
+
+// ---- per-viewer state ----
+let S = {status:{}, note:{}, open:{}, checks:{}, filter:'all'};
+try{ const r=localStorage.getItem(STORE); if(r) S=Object.assign(S, JSON.parse(r)); }catch(e){}
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify(S)); }catch(e){} }
+
+const PILL={live:'Live', setup:'Setup needed', todo:'To do'};
+const NEXT={live:'setup', setup:'todo', todo:'live'};
+const esc=s=>String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+document.getElementById('readyTile').href=READINESS;
+document.getElementById('companions').innerHTML =
+  `<a href="${READINESS}" target="_blank" rel="noopener noreferrer">📋 Launch Readiness</a>`+
+  `<a href="${TIMELINE}" target="_blank" rel="noopener noreferrer">📅 Launch Timeline</a>`+
+  `<a href="${BLUEPRINT}" target="_blank" rel="noopener noreferrer">🤖 Ops Agent Blueprint</a>`;
+
+// ---- render board ----
+const board=document.getElementById('board');
+board.innerHTML = GROUPS.map(grp=>`
+  <section class="group">
+    <h2>${grp.g}</h2>
+    <div class="cards">
+      ${grp.items.map(it=>{
+        const st=S.status[it.id]||it.status;
+        const open=S.open[it.id];
+        const needs=it.need.map((n,i)=>{const k=it.id+'::'+i; const on=S.checks[k]?'checked':''; return `<label class="chk"><input type="checkbox" data-check="${k}" ${on}><span>${esc(n)}</span></label>`;}).join('');
+        const btns=(it.links||[]).map(l=>`<a class="${l[2]?'sec':''}" href="${l[1]}" target="_blank" rel="noopener noreferrer">${esc(l[0])} ↗</a>`).join('');
+        return `<div class="card ${it.ph?'ph':''} ${open?'open':''}" data-id="${it.id}" data-st="${st}">
+          <div class="chead" data-toggle="${it.id}">
+            <svg class="chev" width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="nm">${esc(it.name)}</span>
+            <span class="pill ${st}" data-pill="${it.id}" title="Click to change status">${PILL[st]}</span>
+          </div>
+          <div class="cbody">
+            <div class="what">${esc(it.what)}</div>
+            <div class="needttl">What you need</div>
+            ${needs}
+            ${btns?`<div class="btns">${btns}</div>`:''}
+            <div class="note"><label>Your notes</label><textarea data-note="${it.id}" placeholder="where the key is, a TODO, a decision…">${esc(S.note[it.id]||'')}</textarea></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </section>`).join('');
+
+board.addEventListener('click', e=>{
+  const pill=e.target.closest('[data-pill]');
+  if(pill){ e.stopPropagation(); const id=pill.getAttribute('data-pill'); const card=pill.closest('.card'); const cur=card.dataset.st; const nx=NEXT[cur]; card.dataset.st=nx; S.status[id]=nx; pill.className='pill '+nx; pill.textContent=PILL[nx]; save(); applyFilter(); return; }
+  const head=e.target.closest('[data-toggle]');
+  if(head){ const id=head.getAttribute('data-toggle'); const card=head.closest('.card'); const no=!card.classList.contains('open'); card.classList.toggle('open',no); S.open[id]=no; save(); }
+});
+board.addEventListener('change', e=>{ const cb=e.target.closest('[data-check]'); if(cb){ S.checks[cb.getAttribute('data-check')]=cb.checked; save(); }});
+board.addEventListener('input', e=>{ const ta=e.target.closest('[data-note]'); if(ta){ S.note[ta.getAttribute('data-note')]=ta.value; save(); }});
+
+// ---- filter ----
+function applyFilter(){
+  document.querySelectorAll('.card').forEach(c=>{
+    const st=c.dataset.st; let show=true;
+    if(S.filter==='needs') show = (st==='todo'||st==='setup');
+    else if(S.filter!=='all') show = (st===S.filter);
+    c.classList.toggle('hidden', !show);
+  });
+  document.querySelectorAll('.group').forEach(g=>{ const any=[...g.querySelectorAll('.card')].some(c=>!c.classList.contains('hidden')); g.style.display=any?'':'none'; });
+}
+document.querySelectorAll('#filterbar button').forEach(b=>{
+  if(b.getAttribute('data-filter')===S.filter){ document.querySelectorAll('#filterbar button').forEach(x=>x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); }
+  b.addEventListener('click',()=>{ document.querySelectorAll('#filterbar button').forEach(x=>x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); S.filter=b.getAttribute('data-filter'); save(); applyFilter(); });
+});
+applyFilter();
+
+// ---- countdown + stamp ----
+document.getElementById('days').textContent = (()=>{const d=Math.ceil((LAUNCH-new Date())/86400000); return d>0?d:'0';})();
+document.getElementById('stamp').textContent = 'Mission Control · last updated ' + fmtUpdated(LAST_UPDATED);
+document.getElementById('updatedLine').textContent = '🕑 Last updated ' + fmtUpdated(LAST_UPDATED);
+
+// ---- live status + updates (shared db) ----
+const liveCard=document.getElementById('liveCard');
+const syncline=document.getElementById('syncline');
+const updatesEl=document.getElementById('updates');
+const addWrap=document.getElementById('addWrap');
+
+function fmt(ts){ try{ return new Date(ts).toLocaleString(); }catch(e){ return ts; } }
+function sevClass(s){ s=(s||'').toLowerCase(); if(s.startsWith('ok'))return 'ok'; if(s.startsWith('attention'))return 'attention'; if(s.startsWith('problem'))return 'problem'; return 'none'; }
+
+function renderStatus(d){
+  if(!d){ liveCard.innerHTML='<div class="empty">No status yet. Your ops watcher writes here after it runs (or ask Claude to sync it).</div>'; syncline.textContent=''; return; }
+  const sev=sevClass(d.severity);
+  const m=[];
+  if('http_ok' in d) m.push(['HTTP', d.http_ok?('up'+(d.latency_ms?' · '+d.latency_ms+'ms':'')):'down']);
+  if('tls_days' in d) m.push(['TLS cert', (d.tls_days!=null? d.tls_days+' days':'?')+(d.tls_expires?' · '+d.tls_expires:'')]);
+  if('domain_ok' in d){
+    let dv = d.domain_ok?'ok':'check (.ai RDAP)';
+    if(d.domain_expires) dv = (d.domain_ok?'ok':'expiring soon')+' · exp '+d.domain_expires+(d.domain_days!=null?' · '+d.domain_days+'d':'');
+    m.push(['Domain', dv]);
+  }
+  liveCard.innerHTML =
+    `<div class="live-head"><span class="site">${esc(d.watched||'startuplan.ai')}</span><span class="sev ${sev}">${esc((d.severity||'—'))}</span></div>`+
+    (d.report?`<div class="live-report">${esc(d.report)}</div>`:'')+
+    (m.length?`<div class="metrics">${m.map(x=>`<div class="metric"><div class="ml">${x[0]}</div><div class="mv">${esc(x[1])}</div></div>`).join('')}</div>`:'')+
+    `<div class="live-foot">Last checked: ${d.checked_at?esc(fmt(d.checked_at)):'—'} · source: ${esc(d.source||'ops-watcher')}</div>`;
+  syncline.textContent = d.checked_at? 'updated '+fmt(d.checked_at) : '';
+}
+function renderUpdates(list){
+  if(!list || !list.length){ updatesEl.innerHTML='<div class="empty">No updates yet. Claude posts changes here; you can add your own above.</div>'; return; }
+  updatesEl.innerHTML=list.map(u=>`<div class="update"><div class="ut">${esc(u.title||'Update')}${u.kind?`<span class="ukind">${esc(u.kind)}</span>`:''}</div><div class="um">${u.at?esc(fmt(u.at)):''}</div>${u.body?`<div class="ub">${esc(u.body)}</div>`:''}</div>`).join('');
+}
+
+(async function initDb(){
+  let db=null;
+  try{ db = window.claude && claude.use ? await claude.use('db') : null; }catch(e){ db=null; }
+  if(!db){
+    liveCard.innerHTML='<div class="empty">Live status isn’t available in this view (sign in to see it). The ops watcher’s report shows here once connected.</div>';
+    updatesEl.innerHTML='<div class="empty">Updates aren’t available in this view.</div>';
+    return;
+  }
+  // live status
+  try{
+    db.doc('status/site').onSnapshot(snap=>{ renderStatus(snap.exists?snap.data():null); }, ()=>{ renderStatus(null); });
+  }catch(e){ renderStatus(null); }
+  // updates feed
+  try{
+    db.collection('updates').orderBy('at','desc').limit(50).onSnapshot(snap=>{ renderUpdates(snap.docs.map(d=>d.data())); }, ()=>{ renderUpdates([]); });
+  }catch(e){ renderUpdates([]); }
+  // add-update form (works for the owner; stays graceful if not writable)
+  addWrap.innerHTML='<div class="addform"><input id="uT" placeholder="Update title (e.g. Stripe connected)" maxlength="120"><textarea id="uB" rows="2" placeholder="A line or two of detail (optional)" maxlength="600"></textarea><button id="uAdd">Add update</button><span id="uMsg" style="margin-left:10px;font-size:12px;color:var(--muted)"></span></div>';
+  const T=document.getElementById('uT'), B=document.getElementById('uB'), M=document.getElementById('uMsg');
+  document.getElementById('uAdd').addEventListener('click', async ()=>{
+    const title=T.value.trim(); if(!title){ M.textContent='Add a title.'; return; }
+    M.textContent='Saving…';
+    try{
+      await db.collection('updates').add({at:new Date().toISOString(), title, body:B.value.trim(), kind:'note'});
+      T.value=''; B.value=''; M.textContent='Added.'; setTimeout(()=>M.textContent='',2000);
+    }catch(err){ M.textContent='Could not save (read-only view).'; }
+  });
+})();
+</script>

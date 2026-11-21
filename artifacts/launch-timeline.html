@@ -1,0 +1,329 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Launch Timeline</title>
+<style>
+  /* Layout: a plan vector — 11 Mon–Fri week columns from now to 15 Dec, task rows grouped
+     by workstream with bars coloured by criticality, milestones marked, then a band of
+     ongoing operations that continue past launch. Weeks are Monday-aligned: Wk1 = 5 Oct,
+     12 Oct is the Wk2 Monday. */
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f4; --fg:#141b24; --muted:#5a6b78;
+    --line:#dde3e9; --accent:#0e7c6b; --accent-weak:#d6ece7;
+    --blk:#b4332a; --blk-bg:#e9897f; --high:#9a6612; --high-bg:#e3b765; --std:#0e7c6b; --std-bg:#5bb3a3;
+    --shadow:0 1px 2px rgba(20,27,36,.06), 0 2px 8px rgba(20,27,36,.04);
+    --font-sans:"IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#10151b; --surface:#171e26; --surface-2:#1e2732; --fg:#e7edf2; --muted:#93a3b2;
+    --line:#2a3542; --accent:#2bb39c; --accent-weak:#13302b;
+    --blk:#e87c6d; --blk-bg:#7a362e; --high:#e0a84f; --high-bg:#6d5420; --std:#2bb39c; --std-bg:#1b5349;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25); color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#10151b; --surface:#171e26; --surface-2:#1e2732; --fg:#e7edf2; --muted:#93a3b2;
+    --line:#2a3542; --accent:#2bb39c; --accent-weak:#13302b;
+    --blk:#e87c6d; --blk-bg:#7a362e; --high:#e0a84f; --high-bg:#6d5420; --std:#2bb39c; --std-bg:#1b5349;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25); color-scheme:dark;
+  }
+
+  *{ box-sizing:border-box; }
+  body{ background:var(--bg); color:var(--fg); font-family:var(--font-sans); font-size:15px; line-height:1.5; margin:0; }
+  .wrap{ max-width:1160px; margin:0 auto; padding-inline:16px; }
+  h1,h2,h3{ text-wrap:balance; margin:0; }
+  .eyebrow{ font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  code{ font-family:var(--font-mono); font-size:.85em; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+
+  header.top{ border-bottom:1px solid var(--line); padding-block:22px 16px; }
+  h1{ font-size:clamp(22px,3vw,30px); font-weight:650; letter-spacing:-.015em; margin:4px 0 6px; }
+  .lede{ color:var(--muted); font-size:15px; max-width:66ch; }
+  .headmeta{ display:flex; gap:22px; flex-wrap:wrap; align-items:flex-end; margin-top:14px; }
+  .count .big{ font-family:var(--font-mono); font-size:26px; font-weight:600; line-height:1; color:var(--high); }
+  .count .lbl{ font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
+  .upd{ font-family:var(--font-mono); font-size:11.5px; color:var(--muted); opacity:.85; }
+  .upd b{ color:var(--fg); }
+
+  section.block{ padding-block:22px; }
+  .section-title{ font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600; margin:0 0 12px; display:flex; align-items:center; gap:10px; }
+  .section-title::after{ content:""; flex:1; height:1px; background:var(--line); }
+
+  .legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:12px; }
+  .legend span{ display:inline-flex; gap:6px; align-items:center; }
+  .sw{ width:16px; height:10px; border-radius:3px; }
+  .scrollhint{ display:none; font-size:11px; color:var(--muted); font-family:var(--font-mono); margin-bottom:8px; }
+
+  .ganttwrap{ overflow:auto; max-height:72vh; border:1px solid var(--line); border-radius:13px; background:var(--surface); box-shadow:var(--shadow); }
+  .gantt{ min-width:1040px; position:relative; }
+  /* Continuous vertical week gridlines — one full-height layer behind every row
+     (so they never fragment row-to-row). Drawn only across the 11 week columns,
+     starting after the 208px label column; the header + group rows paint over it
+     and keep their own separators. */
+  .gantt::before{ content:""; position:absolute; top:0; bottom:0; left:208px; right:0; z-index:0; pointer-events:none;
+    background-image:repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px calc(100%/11)); }
+  .grow{ display:grid; grid-template-columns:208px repeat(11, 1fr); align-items:center; min-height:34px; border-top:1px solid var(--line); position:relative; z-index:1; }
+  .grow.head{ border-top:none; position:sticky; top:0; background:var(--surface); z-index:2; }
+  .grow.group{ background:var(--surface-2); min-height:30px; }
+  .glabel{ padding:6px 12px; font-size:12.5px; line-height:1.3; position:sticky; left:0; z-index:3; align-self:stretch; display:flex; flex-direction:column; justify-content:center; background:var(--surface); border-right:1px solid var(--line); }
+  .grow.group .glabel{ grid-column:1 / -1; font-weight:700; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); background:var(--surface-2); border-right:none; }
+  .grow.rowdone .glabel{ color:var(--muted); }  /* completed tasks: dimmed label */
+  .gcell{ height:100%; }  /* spacer only — the continuous lines come from .gantt::before */
+  .whead{ border-left:1px solid var(--line); height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:7px 2px; text-align:center; }
+  .whead .wk{ font-family:var(--font-mono); font-size:11px; font-weight:700; }
+  .whead .dt{ font-size:9.5px; color:var(--muted); margin-top:1px; }
+  .whead.now{ background:var(--accent-weak); }
+  .whead.now .wk{ color:var(--accent); }
+  .corner{ padding:8px 12px; font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); position:sticky; left:0; z-index:3; background:var(--surface); border-right:1px solid var(--line); }
+
+  .gbar{ grid-row:1; height:21px; border-radius:6px; margin:0 4px; display:flex; align-items:center; padding:0 7px; font-size:10px; font-family:var(--font-mono); color:#fff; font-weight:600; z-index:1; white-space:nowrap; overflow:hidden; }
+  :root[data-theme="dark"] .gbar, :root:not([data-theme="light"]) .gbar{ color:#0b140f; }
+  .gbar.blk{ background:var(--blk); } .gbar.high{ background:var(--high); } .gbar.std{ background:var(--std); }
+  .gbar.done{ background:transparent; color:var(--muted); border:1px dashed color-mix(in srgb,var(--accent) 50%, var(--line)); }
+  :root[data-theme="dark"] .gbar.done, :root:not([data-theme="light"]) .gbar.done{ color:var(--muted); }
+  .gbar.ongoing{ background:linear-gradient(90deg, var(--accent), color-mix(in srgb,var(--accent) 22%, var(--surface))); color:#fff; justify-content:space-between; }
+  :root[data-theme="dark"] .gbar.ongoing, :root:not([data-theme="light"]) .gbar.ongoing{ color:#06110d; }
+  /* Slip arrow — a dotted connector drawn from the end of a planned (but unfinished)
+     bar across to the present week, with an arrowhead, marking work carried forward. */
+  .gslip{ grid-row:1; align-self:center; height:0; border-top:2px dotted var(--blk); position:relative; z-index:2; margin:0 11px 0 1px; pointer-events:none; }
+  .gslip::after{ content:"▸"; position:absolute; right:-11px; top:-9px; color:var(--blk); font-size:13px; line-height:1; }
+  .mile{ grid-row:1; z-index:1; display:flex; flex-direction:column; align-items:center; justify-self:center; }
+  .mile .star{ font-size:14px; line-height:1; color:var(--high); }
+  .mile .ml{ font-size:9px; font-family:var(--font-mono); color:var(--fg); text-align:center; margin-top:1px; white-space:nowrap; }
+  .mile.launch .star{ color:var(--blk); font-size:16px; }
+
+  .note{ margin-top:12px; padding:13px 15px; border-radius:11px; background:var(--blk-bg); border:1px solid color-mix(in srgb,var(--blk) 45%, var(--line)); border-left:4px solid var(--blk); color:var(--fg); font-size:13.5px; }
+  .note.ok{ background:var(--accent-weak); border-color:color-mix(in srgb,var(--accent) 40%,var(--line)); border-left-color:var(--accent); }
+  .note b{ color:var(--blk); } .note.ok b{ color:var(--accent); }
+
+  .miles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  .mcard{ background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--high); border-radius:10px; padding:11px 13px; box-shadow:var(--shadow); }
+  .mcard.launch{ border-left-color:var(--blk); }
+  .mcard .md{ font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+  .mcard .mt{ font-weight:650; font-size:14px; margin:2px 0 3px; }
+  .mcard .mx{ font-size:12px; color:var(--muted); line-height:1.4; }
+
+  footer.foot{ color:var(--muted); font-size:12px; padding-block:22px 36px; border-top:1px solid var(--line); margin-top:10px; }
+
+  @media (max-width:640px){ .scrollhint{ display:block; } }
+  @media (prefers-reduced-motion: reduce){ *{transition:none!important;} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">StartUPlan · Deployment</div>
+    <h1>Launch Timeline</h1>
+    <p class="lede">The pre-deployment work sequenced across the <b>11 Mon–Fri weeks</b> to <b>15 Dec 2026</b> — grouped by workstream, coloured by criticality, with milestones and the ongoing operations that run past launch.</p>
+    <div class="headmeta">
+      <div class="count"><div class="big" id="days">—</div><div class="lbl">days to launch</div></div>
+      <div class="upd">Plan v14 · Updated <b id="updstamp">20 Nov 2026</b> · wk 8 active; <b>the apps are code-complete</b> — web + engine API, Export Center (Excel · PDF · PPT · guide) and the Project Assistant are all built (python-pptx/reportlab/openai already pinned) — so the <b>only gap to letting people in is deployment</b>. A private, <b>invite-only beta is pulled forward to ~wk 9</b> (deploy the FastAPI engine + standalone web to a private Cloud Run, test-mode payments, a small invited group) while <b>PDF/PPT polish + dialog testing finish in parallel</b>; <b>public launch holds at 15 Dec</b> (wk 11). The engine is now <b>FastAPI-only</b> (<code>uvicorn service.api:app</code>; <code>/health</code> live) and the web is a <b>standalone container</b> — both Dockerfiles are built and <b>Streamlit is retired</b>, so the remaining gap to opening the beta is the GCP deploy itself plus the pre-beta security fixes. <b>company set up ✓</b> + <b>VAT registered ✓</b> (number in hand — the two longest-lead legal blockers cleared); <b>external, still open:</b> the trading-name (business-name) registration request + the business-bank-account opening meeting (the bank is the last gate before live payouts); <b>phone, iPad &amp; web dashboards — polish complete ✓</b> (device-class layouts: iPhone shell · iPad TabletLayout · desktop build tool; full phone↔web i18n convergence — shared keys across all four locales (EN/FR/UA/IT), an in-place language switch that keeps the current view + open sheet, aria-labels routed through the same keys; unified number formatters + chart geometry; per-metric parity — phone &amp; web read the same engine DTO, never recompute); <b>Export Center built</b> (export dialog: Excel + scenario scope · business-plan PDF · pitch-deck PPT · how-to-read guide — engine exporters + web dialog + tests); <b>Project Assistant built</b> (floating, project-scoped chat — grounded answers with citations + model-change proposals validated against an editable-field catalog, human Apply → recompute; small/large model tiers; per-user cost + rate caps — needs the engine OpenAI key to run live); growth-rows switchboard + workbench rebuild + Detailed ratios landed; Sensitivity Excel sheet (NPV tornado + switching values, Plan tier) iterating; per-family ratio sheets + entitlements v6 (sensitivity → Plan) landed; email infrastructure (Cloudflare routing + Resend + Supabase SMTP + send-as) working; Stripe payments working end-to-end in test mode (checkout + webhook → entitlements, terms gate, cancel/manage portal, upgrade credit, country-aware VAT preview + Stripe Tax ready to switch on now the VAT number is in hand); Unit Economics (CAC/LTV/ARPU) cut from launch scope — engine+web clean-delete, logic kept as a note; <a href="https://github.com/senatoreavita/StartUPlan_Web/blob/dashboard_2026_10_25/docs/ai-copilot.md" target="_blank" rel="noopener" style="color:var(--accent)">AI copilot spec</a> + <a href="https://claude.ai/artifact/1UiZ6gxjLqsLthjjuUFAaL" target="_blank" rel="noopener" style="color:var(--accent)">pricing model</a> drafted (the Project Assistant is the first build of it)</div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="block">
+    <div class="section-title">The plan vector — now → 15 Dec</div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--blk)"></i> Blocker</span>
+      <span><i class="sw" style="background:var(--high)"></i> High</span>
+      <span><i class="sw" style="background:var(--std)"></i> Standard</span>
+      <span><i class="sw" style="background:transparent;border:1px dashed var(--accent)"></i> Done</span>
+      <span>★ Milestone</span>
+      <span><i class="sw" style="background:transparent;border-top:2px dotted var(--blk);height:2px;border-radius:0"></i> ▸ Slipped → now</span>
+      <span><i class="sw" style="background:linear-gradient(90deg,var(--accent),transparent)"></i> Ongoing (past launch)</span>
+    </div>
+    <div class="scrollhint">← scroll the timeline sideways →</div>
+    <div class="ganttwrap">
+      <div class="gantt" id="gantt"></div>
+    </div>
+    <div class="note ok" style="margin-bottom:8px"><b>This week (wk 8 · 23–27 Nov) — deploy week:</b> the apps are code-complete, so the plan pivots to <b>deployment</b>, the one thing between now and real users. Key fix: the engine container still runs Streamlit; it needs a <b>FastAPI image</b> (<code>uvicorn service.api:app</code>; <code>/health</code> already exists) and the web needs <code>output:'standalone'</code> + a Dockerfile. Stand up the GCP project, deploy both to a <b>private Cloud Run</b>, set the engine's <code>OPENAI_API_KEY</code> (unblocks AI extract + the Assistant) with <b>spend caps</b>, gate access to an <b>invite list</b>, turn on <b>backups</b>, and run a <b>pre-beta RLS re-audit on prod</b> (beta users share one DB — the one security gate you can't skip). In parallel, finish the <b>PDF/PPT exports and test the export dialogs end-to-end</b>. Target an <b>invite-only beta ~wk 9 (≈30 Nov)</b>. Desktop stays the build tool. See <code>SPRINT.md</code>.</div>
+    <div class="note ok" style="margin-bottom:8px"><b>Earlier (wk 1 · 5–9 Oct):</b> the UI restructure (left-menu split incl. Risk assessment, sub-nav, Monte Carlo subsections <b>#2–#4</b>, FS-Projections subdivision), the entitlement-derived <b>pricing board</b> + generalised upgrade pricing, and the Excel builder-review fixes + Input/Growth-rates (<b>#6</b>) + single-scenario dashboard verify (<b>#9</b>) — all <b>done ✓</b>. <b>(wk 2 · 12–16 Oct):</b> the <b>Excel presentation workstream</b> — <b>charts</b> across the model (<b>#14</b>) <b>done ✓</b> (8-chart live <b>Summary dashboard</b>), plus the <b>KPI sheet rebuilt as the full ratios board</b>; Stripe billing rounded out in test mode (<b>cancel/manage portal</b>, <b>upgrade-credit fix</b>, <b>"renews in N days"</b>, <b>VAT preview + Stripe Tax</b>) — <b>done ✓</b>. <b>(wk 3 · 19–23 Oct):</b> <b>Unit Economics removed from launch scope ✓</b> (clean delete, logic kept as a note). <b>(wk 4 · 26–30 Oct):</b> the <b>Sensitivity Excel sheet · iterating</b> (NPV tornado + switching-values table + live chart-data, house TOC index), <b>entitlements v6 ✓</b> (sensitivity → Plan tier; the 3rd Excel-gating key), <b>per-family ratio sheets + ratio catalog + Detailed ratios tab ✓</b>, the <b>email stack ✓</b> (receive + send + auth from @startuplan.ai), the <b>growth-rows switchboard + workbench rebuild ✓</b> (per-item growth re-chaining, detail tables in the TOC, drag-safe) and the dashboard <b>KPI band + status badge + live net-CF chart ✓</b>, plus two big builds — the <b>Export Center ✓</b> (an export dialog: pick format <b>Excel</b> + scenario scope / <b>business-plan PDF</b> / <b>pitch-deck PPT</b> / <b>how-to-read guide</b>; PPT needs <code>python-pptx</code> on the engine) and the <b>Project Assistant ✓</b> (a floating, project-scoped chat that answers grounded questions with citations and proposes model changes you Apply → recompute — needs the engine's OpenAI key to answer live). <b>(wk 5–6 · 2–13 Nov):</b> the <b>phone + iPad device views</b> — iPhone shell + iPad TabletLayout + dashboard sections + Export/Account/Plans sheets + reconciled landing — <b>done ✓</b>; <b>company set up ✓</b> and <b>VAT registered ✓</b> landed. <b>(wk 7 · 16–20 Nov):</b> device-view polish, full i18n convergence (EN/FR/UA/IT) + in-place language switch (dashboard + landing), per-metric parity, and the phone sticky-table fix — <b>done ✓</b>. <b>NPV / comparison of options (#7/#8)</b> — modelled into the Excel, scope still to confirm.</div>
+    <div class="note"><b>Containerise now, iterate freely — the answer to "what if I deploy then still have to change things?"</b> Cloud Run is revision-based: you build an image, ship a revision, and every later code change is just a rebuild → new revision (one-step rollout, one-step rollback). So <b>preparing the container before the exports/dialogs are 100% is not a problem</b> — it's the normal, recommended way to de-risk, and it lets real people start playing while you keep fixing. What you do <b>once</b>, and want right the first time, is the write-once, outward-facing set: the GCP project, domain/DNS, Stripe <i>live</i> keys, the legal entity. Code — engine logic, export fixes, dialog tweaks — redeploys cheaply on top. The real long pole, the <b>business bank account</b>, only gates <b>live payments</b>, not the private beta (which stays in Stripe <b>test mode</b>), so it no longer blocks letting people in.</div>
+    <div class="note ok" style="margin-top:8px"><b>What a private beta needs (far less than a public launch):</b> deployed + reachable, auth working, <b>RLS isolation verified on prod</b>, the LLM keys set with <b>spend caps</b>, <b>backups on</b>, and <b>invite-only</b> access — payments stay in <b>test mode</b>, and legal docs / monitoring dashboards / SEO can follow. Aim: <b>deploy wk 8 → invite-only beta ~wk 9 (≈30 Nov)</b> → gather feedback + fix through wk 10 → <b>public launch 15 Dec</b> (live keys, go/no-go, monitoring) as a formality.</div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Milestones</div>
+    <div class="miles">
+      <div class="mcard"><div class="md">now · wk 8</div><div class="mt">★ Code-complete ✓</div><div class="mx">Web + engine API, exports and the Assistant all built; remaining app work is PDF/PPT polish + dialog testing.</div></div>
+      <div class="mcard"><div class="md">~30 Nov · wk 9</div><div class="mt">★ Private beta</div><div class="mx">Invite-only: a small group plays with the real app on a private Cloud Run, test-mode payments — iterate fast.</div></div>
+      <div class="mcard launch"><div class="md">15 Dec · Tue · wk 11</div><div class="mt">★ Public launch</div><div class="mx">Live keys, go/no-go passed, monitoring live, one real transaction verified end-to-end.</div></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Hand-off to the ops agent</div>
+    <div class="note ok"><b>The ongoing band is the Ops Agent crew.</b> Cost monitoring, error triage, dependency updates, backup checks, domain/TLS watch and billing reconciliation don't end at launch — they're exactly the specialists in the Ops Agent Blueprint. Stand up the agent's Phase 0 watchers during weeks 8–9 (alongside the deploy) so they're live for the beta and the launch.</div>
+  </section>
+
+  <footer class="foot">Companion to Launch Readiness, the Ops Agent Blueprint and the <a href="https://claude.ai/artifact/1UiZ6gxjLqsLthjjuUFAaL" target="_blank" rel="noopener" style="color:var(--accent)">Pricing Model</a>. Weeks are Mon–Fri: wk 1 = 5 Oct 2026, 12 Oct is the wk 2 Monday, launch 15 Dec (wk 11). Shift the whole vector if the start slips.</footer>
+</main>
+
+<script>
+const LAUNCH = new Date('2026-12-15T00:00:00');
+// REMINDER: bump UPDATED to the current UTC time on EVERY edit/republish of this timeline.
+const UPDATED = '2026-11-21T11:45:33Z';
+// Week columns — Monday-aligned, Mon–Fri working weeks. Wk1 = Mon 5 Oct. The apps
+// are code-complete; wk 8 (Mon 23 Nov) is now the active DEPLOY week, with a private
+// invite-only beta pulled forward to wk 9 and the public launch holding at 15 Dec (Wk11).
+const WEEKS = [
+  {wk:'Wk 1', dt:'Oct 5'}, {wk:'Wk 2', dt:'Oct 12'}, {wk:'Wk 3', dt:'Oct 19'}, {wk:'Wk 4', dt:'Oct 26'},
+  {wk:'Wk 5', dt:'Nov 2'}, {wk:'Wk 6', dt:'Nov 9'}, {wk:'Wk 7', dt:'Nov 16'}, {wk:'Wk 8', dt:'Nov 23'},
+  {wk:'Wk 9', dt:'Nov 30'}, {wk:'Wk 10', dt:'Dec 7'}, {wk:'Wk 11', dt:'Dec 14'},
+];
+const NOW_WK = 8; // active deploy week (wk 8 · 23–27 Nov)
+const NCOLS = WEEKS.length;
+// tasks: g=group header, or task with s=startWeek(1-N), n=span, c=crit(blk/high/std/done),
+// slip=present-week column when a planned-but-unfinished bar is carried forward (draws a ▸ arrow to it)
+const ROWS = [
+  {g:'Product build — Excel & UI (current sprint)'},
+  {t:'Excel: builder-review fixes — sanitise loan names, localize #Loans link, DRY helpers ✓ done', s:1, n:1, c:'done'},
+  {t:'Excel: Input page + Growth-rates worksheet (#6) ✓ done', s:1, n:1, c:'done'},
+  {t:'Excel: charts across the model — 8-chart live Summary dashboard (#14) ✓ done', s:2, n:1, c:'done'},
+  {t:'Excel: Sensitivity sheet — NPV tornado + switching values (Plan tier) · iterating', s:9, n:1, c:'std'},
+  {t:'Excel: per-family ratio sheets + ratio catalog + Detailed ratios tab ✓ done', s:4, n:1, c:'done'},
+  {t:'Excel: growth-rows switchboard + workbench rebuild — per-item growth re-chaining, detail tables in TOC, drag-safe ✓ done', s:4, n:1, c:'done'},
+  {t:'Excel: design pass — typography / theme / spacing / print layout (#15) · in progress', s:9, n:2, c:'std'},
+  {t:'Excel: navigation dashboard — KPI landing + jump-links to every sheet (#16) · in progress', s:9, n:2, c:'std'},
+  {t:'Excel: NPV of options + comparison sheet (#7/#8) · scope to confirm', s:10, n:2, c:'high'},
+  {t:'Excel: single-scenario export (#9/#10) ✓ · dashboard verify (#9) ✓ done', s:1, n:1, c:'done'},
+  {t:'Company creation / logo — in-app upload + embed in Excel (#1) · in progress', s:9, n:2, c:'std'},
+  {t:'UI: left-menu sections / sub-nav / Monte Carlo (#2–#4) ✓ done', s:1, n:1, c:'done'},
+  {t:'UI: dashboard KPI band + context-aware status badge + live net-CF chart ✓ done', s:4, n:1, c:'done'},
+  {t:'UI: review pass (#5) — mobile-usable landing / auth / pricing — delivered via the phone device view ✓ done', s:1, n:1, c:'done'},
+  {t:'Phone + iPad device views — iPhone/mobile shell + iPad TabletLayout: dashboard sections + Export/Account/Plans sheets + reconciled landing; device-class layouts, full i18n convergence, a11y keys, shared chart geometry, per-metric parity ✓ done', s:5, n:3, c:'done'},
+  {t:'PDF: business plan + how-to-read guide (#12/#13) — built via the Export Center (reportlab, AI narrative polish) ✓ done', s:4, n:1, c:'done'},
+  {t:'Export Center — "Export model" dialog: format Excel (+ scenario scope) / business-plan PDF / pitch-deck PPT / how-to-read guide; engine exporters + web dialog + API + tests ✓ done (PPT needs python-pptx on engine)', s:4, n:1, c:'done'},
+  {t:'Project Assistant — floating project-scoped chat: grounded answers + model-change proposals (Apply → recompute, whitelist-validated), small/large model tiers, cost + rate caps ✓ built (needs engine OpenAI key to run live)', s:4, n:1, c:'done'},
+  {t:'Scenario levers → single source of truth (UI→engine→Excel) ✓ done', s:1, n:1, c:'done'},
+  {t:'MC + Sensitivity: persist config with project (fresh each run; random/LHS) ✓ done', s:1, n:1, c:'done'},
+  {t:'Download / save a selected Monte Carlo case → Excel built on that case ✓ done', s:1, n:1, c:'done'},
+  {t:'Excel Risk Assessment page — static MC/sensitivity charts, fed by UI result (no re-run)', s:10, n:2, c:'std'},
+  {t:'Unit Economics (CAC/LTV/ARPU) — removed from launch scope · engine+web clean-delete, logic kept as a note ✓ done', s:3, n:1, c:'done'},
+
+  {g:'Deploy & private beta — the only gap to letting people in (now)'},
+  {t:'Engine → FastAPI container — Dockerfile swapped to uvicorn service.api:app; Streamlit removed from the engine; /health live ✓ done', s:8, n:1, c:'done'},
+  {t:"Web → standalone container — output:'standalone' + Dockerfile added ✓ done", s:8, n:1, c:'done'},
+  {t:'GCP project · billing · IAM · EU region · Secret Manager · Artifact Registry', s:8, n:1, c:'high'},
+  {t:'Deploy engine + web → private Cloud Run — engine --no-allow-unauthenticated (Cloud Run IAM gates it) + web mints a Google ID token + X-Extract-Token backstop; grant the web SA roles/run.invoker on the engine · /health checks. Commands: DEPLOY_CLOUD_RUN.md', s:8, n:2, c:'blk'},
+  {t:'Set engine OPENAI_API_KEY (+ ANTHROPIC) — unblocks AI extract + the Assistant · set provider spend caps', s:8, n:1, c:'high'},
+  {t:'Invite-only gate for the beta — allowlist / beta flag (open signup stays off)', s:8, n:1, c:'high'},
+  {t:'Backups (PITR) on + one restore drill (BACKUPS.md)', s:8, n:1, c:'high'},
+  {t:'Pre-beta RLS re-audit on prod — beta users share one DB; the one security gate you cannot skip', s:9, n:1, c:'blk'},
+  {t:'Domain · TLS (the beta can run on the Cloud Run URL first)', s:10, n:1, c:'std'},
+
+  {g:'Payments & billing (the long pole)'},
+  {t:'Provider = Stripe (decided ✓) · products/prices → tiers created from the catalog (test mode) ✓ done', s:1, n:1, c:'done'},
+  {t:'Checkout + webhook → entitlements — built in Stripe test mode ✓ done (go-live needs live keys)', s:2, n:1, c:'done'},
+  {t:'Subscription lifecycle · cancel/manage portal · invoices (test mode) ✓ done', s:2, n:1, c:'done'},
+  {t:'VAT — country-aware display + Stripe Tax wiring built ✓ done', s:3, n:1, c:'done'},
+  {t:'VAT registered ✓ done — switch on Stripe Tax (quick, now the number is in hand)', s:6, n:1, c:'done'},
+  {t:'Payments go-live (public only) — swap test→live keys · verify 1 real transaction (needs the bank account)', s:10, n:2, c:'blk'},
+
+  {g:'Legal & scope'},
+  {t:'Company name + address registered ✓ done', s:2, n:1, c:'done'},
+  {t:'Company set up / incorporated ✓ done', s:6, n:1, c:'done'},
+  {t:'VAT registered ✓ done (number in hand)', s:6, n:1, c:'done'},
+  {t:'Trading-name (business-name) registration — requested; awaiting reply (external)', s:8, n:1, c:'high'},
+  {t:'Business bank account — application submitted (external); gates live payments only', s:8, n:2, c:'blk'},
+  {t:'ToS · Privacy · sub-processors (legal review) — needed for public launch, not the beta', s:9, n:2, c:'blk'},
+  {t:'Features catalog + pricing lock (what renders) — lock during the beta', s:9, n:2, c:'blk'},
+  {t:'GDPR erasure/export · cookie consent', s:10, n:2, c:'high'},
+
+  {g:'Data & auth'},
+  {t:'Supabase prod + RLS audit — baseline done (F1 fixed · isolation verified)', s:1, n:2, c:'done'},
+  {t:'OAuth — Google ✓ code · finish Supabase config (needed for beta sign-in) · Apple deferred', s:8, n:1, c:'high'},
+  {t:'Inbound email — admin@/support@/privacy@ forwarding (Cloudflare Email Routing) + reply-as ✓ done', s:2, n:1, c:'done'},
+  {t:'Email — auth + transactional via Resend (verify domain · Supabase custom SMTP · templates) ✓ done', s:2, n:2, c:'done'},
+  {t:'Plan schema-version migration path — read project_inputs.schema_version on load → run v(n→n+1) migrators → deserialize, so engine schema changes never orphan saved plans (stamp exists; not yet read back) · before real users store plans', s:10, n:1, c:'high'},
+
+  {g:'Security & reliability'},
+  {t:'RLS drift CI assertion — every table RLS-on + owner-scoped; fails the build on a gap ✓ done', s:2, n:1, c:'done'},
+  {t:'Durable rate limiting (Memorystore/Upstash) — before wider traffic (beta can run 1 instance)', s:10, n:1, c:'blk'},
+  {t:'Monitoring · errors · health alerts (live before the public date)', s:10, n:1, c:'blk'},
+  {t:'Security review + engine load test', s:9, n:2, c:'high'},
+  {t:'Engine auth = Google ID token (OIDC) ✓ built — web mints a Cloud Run ID token (google-auth-library, engine URL as audience); the shared secret moved to its own X-Extract-Token header as the app backstop. DECIDED as the BETA door (not deferred to public): deploy just applies --no-allow-unauthenticated + roles/run.invoker (see the Deploy step). B1 network-hiding (internal ingress + VPC/NAT) is optional later, not required.', s:10, n:1, c:'done'},
+
+  {g:'Product finalisation'},
+  {t:'i18n completeness (EN / FR / UA / IT) — shared keys phone↔web, in-place language switch, aria-labels through keys ✓ done', s:5, n:3, c:'done'},
+  {t:'Finish PDF / PPT exports + test the export dialogs end-to-end — exporters built, python-pptx/reportlab/openai pinned; verify live once the engine is deployed', s:8, n:2, c:'high'},
+  {t:'SEO + marketing copy', s:9, n:2, c:'high'},
+  {t:'Remove dev flags · failure-state UX polish', s:8, n:1, c:'high'},
+  {t:'Mobile present-mode + PWA (manifest · icons · splash · Serwist SW, network-first for data · Lighthouse) — before 15 Dec; desktop stays the build tool', s:9, n:2, c:'high'},
+
+  {g:'Launch'},
+  {t:'Private beta — invite a small group, let them play with the real app, gather feedback + iterate (test-mode payments)', s:9, n:2, c:'high'},
+  {t:'Staging / pre-prod UAT', s:9, n:1, c:'high'},
+  {t:'Pre-launch RLS re-audit on prod DB (every table RLS-on · owner-scoped · entitlements server-write-only) — final go/no-go gate', s:11, n:1, c:'blk'},
+  {t:'Go / no-go + public launch', s:11, n:1, c:'high'},
+  {t:'Retire Streamlit — engine is FastAPI-only + the old Streamlit app is shut down (closes SEC-2) ✓ done', s:11, n:1, c:'done'},
+];
+// ongoing ops (start week, runs to launch and beyond)
+const ONGOING = [
+  {t:'Cost monitoring (all providers)', s:8},
+  {t:'Error triage + support', s:9},
+  {t:'Dependency + security updates', s:8},
+  {t:'Backup verification', s:8},
+  {t:'Domain / TLS renewal watch', s:10},
+  {t:'Billing reconciliation', s:10},
+];
+// milestones: week column + label (+launch flag)
+const MILES = [ {s:8, l:'Code-complete'}, {s:9, l:'Private beta'}, {s:11, l:'Dec 15 · Launch', launch:true} ];
+
+const g = document.getElementById('gantt');
+let html = '';
+
+// header row
+html += `<div class="grow head"><div class="corner">Workstream</div>` +
+  WEEKS.map((w,i) => `<div class="whead ${i+1===NOW_WK?'now':''}"><span class="wk">${w.wk}</span><span class="dt">${w.dt}</span></div>`).join('') +
+  `</div>`;
+
+// milestone row
+html += `<div class="grow"><div class="glabel" style="color:var(--muted);font-size:11px">Milestones</div>` +
+  Array.from({length:NCOLS}, (_,i)=>`<div class="gcell" style="grid-column:${i+2}"></div>`).join('') +
+  MILES.map(m => `<div class="mile ${m.launch?'launch':''}" style="grid-column:${m.s+1}"><span class="star">★</span><span class="ml">${m.l}</span></div>`).join('') +
+  `</div>`;
+
+// task rows
+ROWS.forEach(r => {
+  if (r.g){ html += `<div class="grow group"><div class="glabel">${r.g}</div></div>`; return; }
+  const cells = Array.from({length:NCOLS}, (_,i)=>`<div class="gcell" style="grid-column:${i+2}"></div>`).join('');
+  const end = r.s + r.n;
+  const label = r.n >= 2 ? `${WEEKS[r.s-1].dt}–${WEEKS[end-2].dt}` : WEEKS[r.s-1].dt;
+  const bar = `<div class="gbar ${r.c}" style="grid-column:${r.s+1}/span ${r.n}" title="${r.t} · ${label}">${r.n>=2?label:''}</div>`;
+  // slip arrow: from the end of the planned bar across to the present week column
+  const slip = (r.slip && r.slip >= end) ?
+    `<div class="gslip" style="grid-column:${end+1}/${r.slip+2}" title="carried into wk ${r.slip} (${WEEKS[r.slip-1].dt})"></div>` : '';
+  html += `<div class="grow${r.c==='done'?' rowdone':''}"><div class="glabel">${r.t}</div>${cells}${bar}${slip}</div>`;
+});
+
+// ongoing band
+html += `<div class="grow group"><div class="glabel" style="color:var(--accent)">Ongoing operations — launch onward (the Ops Agent crew)</div></div>`;
+ONGOING.forEach(o => {
+  const cells = Array.from({length:NCOLS}, (_,i)=>`<div class="gcell" style="grid-column:${i+2}"></div>`).join('');
+  const bar = `<div class="gbar ongoing" style="grid-column:${o.s+1}/-1" title="${o.t} · continues past launch"><span>from ${WEEKS[o.s-1].dt}</span><span>→</span></div>`;
+  html += `<div class="grow"><div class="glabel">${o.t}</div>${cells}${bar}</div>`;
+});
+
+g.innerHTML = html;
+
+// days to launch
+(function(){
+  const d = Math.ceil((LAUNCH - new Date())/86400000);
+  document.getElementById('days').textContent = d > 0 ? d : '0';
+})();
+// updated stamp in the viewer's local time
+(function(){
+  try{
+    const el = document.getElementById('updstamp');
+    el.textContent = new Date(UPDATED).toLocaleString(undefined, {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZoneName:'short'});
+  }catch(e){}
+})();
+</script>
+
+</body>
+</html>

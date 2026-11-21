@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Launch Readiness</title>
+<style>
+  /* Layout: a working ops checklist — sticky header with live countdown + progress,
+     a recommended-stack band, a critical-path callout, then categorised rows you tick off. */
+  :root {
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f4; --fg:#141b24; --muted:#5a6b78;
+    --line:#dde3e9; --accent:#0e7c6b; --accent-weak:#d6ece7;
+    --crit:#b4332a; --crit-bg:#fae6e3; --high:#9a6612; --high-bg:#f8edd7;
+    --ok:#1f8a54; --ok-bg:#dff2e6; --na:#5a6b78; --na-bg:#e7ecf0;
+    --shadow:0 1px 2px rgba(20,27,36,.06), 0 2px 8px rgba(20,27,36,.04);
+    --fs-body: clamp(14px, 1.3vw, 15px);
+    --font-sans:"IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#10151b; --surface:#171e26; --surface-2:#1e2732; --fg:#e7edf2; --muted:#93a3b2;
+    --line:#2a3542; --accent:#2bb39c; --accent-weak:#13302b;
+    --crit:#e87c6d; --crit-bg:#361f1c; --high:#e0a84f; --high-bg:#34290f;
+    --ok:#4cc07f; --ok-bg:#15301f; --na:#8699a8; --na-bg:#212b36;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25); color-scheme:dark;
+  }}
+  :root[data-theme="dark"] {
+    --bg:#10151b; --surface:#171e26; --surface-2:#1e2732; --fg:#e7edf2; --muted:#93a3b2;
+    --line:#2a3542; --accent:#2bb39c; --accent-weak:#13302b;
+    --crit:#e87c6d; --crit-bg:#361f1c; --high:#e0a84f; --high-bg:#34290f;
+    --ok:#4cc07f; --ok-bg:#15301f; --na:#8699a8; --na-bg:#212b36;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25); color-scheme:dark;
+  }
+
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--fg); font-family:var(--font-sans); font-size:var(--fs-body); line-height:1.5; margin:0; }
+  .wrap { max-width:1060px; margin:0 auto; padding-inline:16px; }
+  a { color:var(--accent); }
+  h1,h2,h3 { text-wrap:balance; margin:0; }
+
+  /* Header */
+  /* Slim sticky summary strip — only days-left / blockers-open / overall readiness pin to the top. */
+  .statbar { position:sticky; top:env(safe-area-inset-top,0px); z-index:30; background:color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .statbar-inner { display:flex; gap:12px 22px; align-items:center; flex-wrap:wrap; padding-block:9px; }
+  header.top { position:static; border-bottom:1px solid var(--line); }
+  .head-row { display:flex; flex-wrap:wrap; gap:14px 22px; align-items:flex-end; justify-content:space-between; padding-block:14px; }
+  .brand { display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .eyebrow { font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  h1 { font-size:clamp(20px,2.6vw,26px); font-weight:650; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:13px; }
+  .sub.upd { font-size:11.5px; font-family:var(--font-mono); letter-spacing:.01em; opacity:.85; }
+  .meters { display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+  .count { text-align:center; }
+  .count .big { font-family:var(--font-mono); font-size:26px; font-weight:600; line-height:1; font-variant-numeric:tabular-nums; }
+  .count .lbl { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
+  .count .big.warnish { color:var(--high); }
+  .progress-wrap { flex:1 1 220px; min-width:180px; }
+  .progress-top { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:5px; }
+  .progress-top b { color:var(--fg); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .bar { height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden; }
+  .bar > i { display:block; height:100%; width:0; background:linear-gradient(90deg, var(--accent), color-mix(in srgb,var(--accent) 60%, #4cc07f)); border-radius:99px; transition:width .35s ease; }
+
+  .filters { display:flex; gap:8px; flex-wrap:wrap; padding-bottom:12px; }
+  .filters button { font:inherit; font-size:12.5px; cursor:pointer; border:1px solid var(--line); background:var(--surface); color:var(--muted); padding:5px 11px; border-radius:99px; display:inline-flex; gap:6px; align-items:center; }
+  .filters button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  :root[data-theme="dark"] .filters button[aria-pressed="true"], :root:not([data-theme="light"]) .filters button[aria-pressed="true"] { color:#08140f; }
+  .filters .tally { font-family:var(--font-mono); font-size:11px; opacity:.8; }
+  .filters .act { margin-left:auto; }
+  @media (max-width:560px){ .filters .act { margin-left:0; } }
+
+  /* Intro blocks */
+  section.block { padding-block:20px; }
+  .section-title { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+  .section-title::after { content:""; flex:1; height:1px; background:var(--line); }
+
+  .stack-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:10px; }
+  .scard { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 13px; box-shadow:var(--shadow); }
+  .scard .k { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .scard .v { font-weight:650; font-size:15px; margin:2px 0 4px; }
+  .scard .why { font-size:12.5px; color:var(--muted); line-height:1.45; }
+  .topo { margin:12px 0 0; padding:11px 14px; font-size:12.5px; color:var(--muted); background:var(--surface-2); border:1px solid var(--line); border-radius:9px; line-height:1.55; }
+  .topo b { color:var(--fg); }
+  .scard[role=button] { cursor:pointer; transition:transform .12s ease, border-color .12s ease, box-shadow .12s ease; }
+  .scard[role=button]:hover { border-color:var(--accent); transform:translateY(-1px); box-shadow:0 3px 12px rgba(20,27,36,.09); }
+  .scard[role=button]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .scard .jump { display:inline-flex; align-items:center; gap:4px; margin-top:9px; font-size:10.5px; font-family:var(--font-mono); letter-spacing:.03em; color:var(--accent); }
+  .cat { scroll-margin-top:104px; }
+  .cat.flash { animation:flashcat 1.7s ease; }
+  @keyframes flashcat { 0%,45% { box-shadow:0 0 0 2px var(--accent), var(--shadow); } 100% { box-shadow:0 0 0 0 transparent, var(--shadow); } }
+  @media (prefers-reduced-motion: reduce){ .cat.flash { animation:none; } }
+
+  .callout { background:var(--crit-bg); border:1px solid color-mix(in srgb,var(--crit) 40%, var(--line)); border-left:4px solid var(--crit); border-radius:10px; padding:14px 16px; }
+  .callout h3 { font-size:14px; color:var(--crit); display:flex; align-items:center; gap:8px; }
+  .callout ol { margin:10px 0 0; padding-left:20px; display:grid; gap:7px; }
+  .callout li { font-size:13.5px; }
+  .callout li b { font-weight:650; }
+  .callout.ok { background:var(--ok-bg); border-color:color-mix(in srgb,var(--ok) 40%, var(--line)); border-left-color:var(--ok); }
+  .callout.ok h3 { color:var(--ok); }
+
+  /* Category + rows */
+  .cat { margin-bottom:10px; border:1px solid var(--line); border-radius:12px; background:var(--surface); box-shadow:var(--shadow); overflow:hidden; }
+  .cat > summary { list-style:none; cursor:pointer; padding:13px 15px; display:flex; align-items:center; gap:12px; }
+  .cat > summary::-webkit-details-marker { display:none; }
+  .cat .chev { color:var(--muted); transition:transform .2s; flex:none; }
+  .cat[open] .chev { transform:rotate(90deg); }
+  .cat h2 { font-size:15.5px; font-weight:650; flex:1; min-width:0; }
+  .cat .catprog { font-family:var(--font-mono); font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .cat .minibar { width:54px; height:6px; border-radius:99px; background:var(--surface-2); overflow:hidden; flex:none; }
+  .cat .minibar > i { display:block; height:100%; background:var(--accent); width:0; transition:width .3s; }
+
+  .rows { border-top:1px solid var(--line); }
+  .row { display:grid; grid-template-columns:26px 1fr auto; gap:12px; padding:12px 15px; border-bottom:1px solid var(--line); align-items:start; }
+  .row:last-child { border-bottom:none; }
+  .row.done { background:color-mix(in srgb, var(--ok-bg) 45%, transparent); }
+  .row .box { margin-top:2px; }
+  .row input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); cursor:pointer; }
+  .row .main { min-width:0; }
+  .row .t { font-weight:600; font-size:14px; }
+  .row.done .t { text-decoration:line-through; text-decoration-color:var(--muted); color:var(--muted); }
+  .row .pre { color:var(--fg); font-size:13px; margin-top:3px; }
+  .row .on { color:var(--muted); font-size:12.5px; margin-top:4px; display:flex; gap:6px; }
+  .row .on .tag { font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent-weak); background:var(--accent-weak); padding:1px 5px; border-radius:4px; height:fit-content; flex:none; margin-top:1px; }
+  :root[data-theme="dark"] .row .on .tag, :root:not([data-theme="light"]) .row .on .tag { color:var(--accent); }
+  .row .meta { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  code { font-family:var(--font-mono); font-size:.85em; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+
+  .chip { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:99px; white-space:nowrap; }
+  .chip.blocker { background:var(--crit-bg); color:var(--crit); }
+  .chip.high { background:var(--high-bg); color:var(--high); }
+  .chip.standard { background:var(--na-bg); color:var(--na); }
+
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); padding-block:4px 2px; }
+  .legend span { display:inline-flex; gap:6px; align-items:center; }
+  .dot { width:9px; height:9px; border-radius:99px; }
+
+  footer.foot { color:var(--muted); font-size:12px; padding-block:22px 34px; display:flex; flex-wrap:wrap; gap:10px 18px; justify-content:space-between; align-items:center; border-top:1px solid var(--line); margin-top:8px; }
+  .reset { font:inherit; font-size:12px; cursor:pointer; background:none; border:1px solid var(--line); color:var(--muted); border-radius:7px; padding:5px 10px; }
+
+  .hidden { display:none !important; }
+
+  @media (max-width:560px){
+    .row { grid-template-columns:24px 1fr; }
+    .row .meta { grid-column:2; flex-direction:row; align-items:center; }
+    .meters { width:100%; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+
+<div class="statbar">
+  <div class="wrap">
+    <div class="statbar-inner">
+      <div class="count"><div class="big warnish" id="days">—</div><div class="lbl">days left</div></div>
+      <div class="count"><div class="big" id="blkLeft">—</div><div class="lbl">blockers open</div></div>
+      <div class="progress-wrap">
+        <div class="progress-top"><span>Overall readiness</span><span><b id="pDone">0</b>/<b id="pTot">0</b></span></div>
+        <div class="bar"><i id="pBar"></i></div>
+      </div>
+    </div>
+    <div class="filters">
+      <button data-filter="all" aria-pressed="true">All <span class="tally" id="tAll"></span></button>
+      <button data-filter="open">Unchecked <span class="tally" id="tOpen"></span></button>
+      <button data-filter="blocker">Blockers <span class="tally" id="tBlk"></span></button>
+      <button data-filter="priority">Blockers + High</button>
+      <button id="collapseToggle" class="act" type="button">Collapse all</button>
+    </div>
+  </div>
+</div>
+
+<header class="top">
+  <div class="wrap">
+    <div class="head-row">
+      <div class="brand">
+        <div class="eyebrow">StartUPlan · Deployment</div>
+        <h1>Launch Readiness</h1>
+        <div class="sub">Everything to stand up, finalise &amp; operate the web app — <b>invite-only private beta ~30 Nov</b>, <b>public launch 15 Dec 2026</b>.</div>
+        <div class="sub upd">Updated <b>21 Nov 2026, 12:09 UTC</b> · apps code-complete ✓ · Streamlit removed from the engine ✓ · engine door = Google ID token / OIDC decided + built ✓ · built/decided items pre-ticked below (deploy & go-live steps left open) ✓ · deploy pulled to wk 8 · private beta ~wk 9 · public-launch go/no-go gate + plan schema-version migration spec added below</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="block">
+    <div class="section-title">Recommended stack — Google Cloud</div>
+    <div class="stack-grid" id="stack"></div>
+    <p class="topo"><b>Request path:</b> browser → Cloud Run (Next.js, public, behind Load Balancer + Cloud Armor) → Cloud Run (FastAPI engine, IAM-locked via --no-allow-unauthenticated; the web presents a Google ID token) → Supabase / OpenAI / Anthropic. Secrets in Secret Manager, images in Artifact Registry, one EU region throughout.</p>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Critical path — the five things that gate the date</div>
+    <div class="callout">
+      <h3>◆ Start these now; everything else can run in parallel</h3>
+      <ol>
+        <li><b>Real billing — core flow built ✓, go-live remains.</b> Stripe test-mode checkout → <code>tier_grants</code> is built and verified end-to-end (hosted Checkout from the upgrade modal + a signature-verified webhook, the only grant writer). What's left is go-live: a legal entity + bank for live payouts, live keys + the live webhook endpoint (see <code>StartUPlan_Web/docs/deploy.md</code>), subscription lifecycle, tax/VAT, and the billing portal.</li>
+        <li><b>Company + VAT done ✓ — bank account + policies remain.</b> The legal entity is set up ✓ and VAT is registered ✓ (number in hand). The <b>business bank account</b> is the last gate on live payouts (opening meeting imminent; onboarding can take weeks), plus the trading-name registration. Then the <code>terms</code> placeholders and <code>[TODO]</code> refund policy, plus ToS, Privacy and the sub-processor list.</li>
+        <li><b>Engine container for Cloud Run.</b> The only Dockerfile in the engine repo runs <code>streamlit</code>, not the API — the one concrete deploy blocker. Write a FastAPI image (<code>uvicorn service.api:app</code>, bind <code>$PORT</code>); the <code>/health</code> endpoint and the export deps (<code>python-pptx</code>, <code>reportlab</code>, <code>openai</code>) are already in place. Deploy with <code>--no-allow-unauthenticated</code> (Cloud Run IAM gates it); the web calls it with a Google ID token + an <code>X-Extract-Token</code> backstop. The web needs <code>output:'standalone'</code> + its own Dockerfile.</li>
+        <li><b>Durable rate limiting.</b> The in-memory limiter is per-instance (WEB-SEC-14) — it breaks across replicas. Move it to Upstash/Redis before real traffic. (Note: the new Project Assistant's per-user rate + daily caps are in-memory too — the same move covers them.)</li>
+        <li><b>Monitoring &amp; errors.</b> There is none today. Sentry + uptime/health alerts + LLM-spend alerts, so you find out before your users do.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Private beta — pull it forward (far less than a public launch)</div>
+    <div class="callout ok">
+      <h3>✓ You can let people in before the public date — the short list</h3>
+      <p style="margin:10px 0 0;font-size:13.5px">The app is <b>code-complete</b> (web + engine API, Export Center, Assistant). Containerising now and iterating is normal — Cloud Run is revision-based, so every later change is just a rebuild → new revision. Preparing the container before PDF/PPT/dialogs are 100% is <b>not</b> a problem. A private beta needs only:</p>
+      <ol>
+        <li><b>Deployed + reachable</b> — FastAPI engine + standalone web on a <b>private Cloud Run</b> (the Cloud Run URL is fine; no custom domain needed yet).</li>
+        <li><b>Auth + RLS isolation verified on prod</b> — beta users share one DB, so this is the one security gate you can't skip (baseline done; re-audit on the prod project).</li>
+        <li><b>LLM keys set with spend caps</b> — <code>OPENAI_API_KEY</code> (+ Anthropic) on the engine so extract + the Assistant work, with hard provider caps.</li>
+        <li><b>Invite-only access</b> — an allowlist / beta flag; open signup stays off.</li>
+        <li><b>Backups on</b> — PITR + one restore drill, so beta data is safe.</li>
+      </ol>
+      <p style="margin:10px 0 0;font-size:13.5px"><b>Stays in test mode / can follow:</b> payments (no live keys, no bank dependency), full ToS/DPA, monitoring dashboards, cross-replica rate-limiting (run one instance for the beta), SEO. The public-launch blockers below are for <b>15 Dec</b>, not the beta.</p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Public launch — go/no-go gate</div>
+    <div class="callout">
+      <h3>◆ Flip to the open public only when ALL of these are TRUE</h3>
+      <p style="margin:10px 0 0;font-size:13.5px">The beta's bar is "safe for a few invited testers, no money". Public launch adds the things the beta skipped — because now it's the open internet, real payments, and strangers' data at scale:</p>
+      <ol>
+        <li><b>Payments live</b> — business bank account open · Stripe test→live keys + live webhook secret · Stripe Tax/VAT on + VAT invoices · <code>ALLOW_TRIAL_UPGRADES</code> off + trial/test grants purged · one real transaction verified end-to-end.</li>
+        <li><b>Legal complete</b> — real company + VAT in <code>terms</code> · ToS (incl. refund policy) · Privacy + sub-processor list · GDPR lawful basis + DPAs · data export/erasure path · cookie consent.</li>
+        <li><b>Security &amp; reliability hardened</b> — the <b>pre-launch RLS re-audit on prod</b> (every table RLS-on · owner-scoped · entitlements server-write-only) · durable cross-replica rate limiting (Memorystore/Upstash) · monitoring + error tracking + uptime/health + LLM-spend alerts · security review · incident runbook.</li>
+        <li><b>Scale ready</b> — Cloud Run sized (CPU · concurrency · max-instances) · the 2 slow paths (10k Monte-Carlo + AI extract) queued/async · engine load-tested · Supabase pooled (pgBouncer) connection.</li>
+        <li><b>Scope locked</b> — features catalog + pricing lock (only sell what renders) · PDF/PPT exports + dialogs finished · dev flags off (<code>environment=production</code>).</li>
+        <li><b>Launch mechanics</b> — custom domain + TLS on the new web · Streamlit retired (cutover · grace · shutdown) · SEO / OG / sitemap · rollback plan (Cloud Run revisions) · final sign-off.</li>
+        <li><b>Data durability</b> — the plan <b>schema-version migration path</b> is live: saved plans are read back by <code>schema_version</code> and run through registered <code>v(n→n+1)</code> migrators before deserializing, so an engine/schema change never orphans a paying user's stored plan. The stamp already exists — today it's written but never read. Spec below.</li>
+      </ol>
+      <p style="margin:10px 0 0;font-size:13.5px"><b>The one-line gate:</b> don't flip public until <b>RLS re-audited green on prod + monitoring live + one real payment verified end-to-end</b>. The granular, tickable tasks for every item above live in the checklist below.</p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Spec — plan schema-version migration path</div>
+    <div class="callout">
+      <h3>◆ So you can evolve the engine without orphaning saved plans</h3>
+      <p style="margin:10px 0 0;font-size:13.5px"><b>Where it stands today:</b> every saved plan's inputs are stamped <code>schema_version: 1</code> on write (<code>planStore.ts</code>), but <code>loadPlans</code> never reads that column back, and <code>PlanInput</code> is <code>extra="forbid"</code>. So a breaking input-schema change would silently drop unknown fields — or fail validation — on plans saved by the old build. The stamp is a hook with nothing on the other end. <b>Not a beta blocker</b> (few testers, disposable data); a <b>public-launch requirement</b>, because real users' stored plans must survive engine changes.</p>
+      <p style="margin:12px 0 4px;font-size:13.5px"><b>The build (small, well-scoped):</b></p>
+      <ol>
+        <li><b>One source of truth</b> — <code>CURRENT_SCHEMA_VERSION</code> defined once (shared by the engine input schema and the web persistence), replacing the hard-coded <code>1</code> in <code>planStore</code>.</li>
+        <li><b>A migrator registry</b> — <code>MIGRATIONS[n]: (inputs) ⇒ inputs</code>, each a pure, additive step that upgrades a plan from version <code>n</code> to <code>n+1</code> (add a defaulted field, rename a key, re-shape a sub-object).</li>
+        <li><b>Version-aware load</b> — on read: take the row's <code>schema_version</code>, run every migrator in sequence from that version up to <code>CURRENT</code>, <i>then</i> deserialize into <code>PlanInput</code>. An unknown/newer version fails loudly, never silently.</li>
+        <li><b>Version-aware save</b> — stamp <code>CURRENT_SCHEMA_VERSION</code> (not a literal <code>1</code>) on every write.</li>
+        <li><b>A fixtures test</b> — one saved-plan JSON fixture per historical version; the test asserts each migrates + deserializes green. This is what makes every future schema change safe to ship.</li>
+      </ol>
+      <p style="margin:10px 0 0;font-size:13.5px"><b>Rules:</b> migrators are pure and forward-only; never mutate stored rows in place — migrate on read, re-stamp on the next save. The engine's <i>output</i> render contract is already versioned (<code>render_dto.py</code>); this closes the matching gap on the <i>input</i> side. <b>Effort ≈ ½–1 day. Deadline:</b> before the first real user stores a plan you can't afford to lose.</p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Foundation already in place — per the contracts &amp; linking roadmap</div>
+    <div class="callout ok">
+      <h3>✓ The hard architecture is done — this de-risks the launch</h3>
+      <ol>
+        <li><b>Engine-authoritative link is live.</b> The web renders real engine output via the compute endpoint; the old <code>compute.ts</code> browser model is retired. No number is computed twice. The new Project Assistant follows the same rule — the LLM proposes, the engine computes and validates.</li>
+        <li><b>Shared contracts exist in both repos.</b> <code>inputs.catalog.json</code> and <code>entitlements.contract.json</code> are shared; the render DTO is live; capex names reconciled (<code>cost</code>/<code>useful_life_years</code>/<code>start_year</code>).</li>
+        <li><b>Identity resolved at the edge.</b> The web resolves tier server-side and sends the engine <code>(inputs, access_tier)</code> only — never a user. Excel worksheet codes (B1) done.</li>
+        <li><b>Export Center shipped.</b> One "Export model" dialog now drives every output — Excel (with scenario scope), business-plan PDF, pitch-deck PPT and a how-to-read guide — through engine exporters with a shared manifest, web dialog, API routes and tests. This closes the deferred business-plan PDF (#12/#13).</li>
+        <li><b>Still open:</b> the <b>features catalog</b> (roadmap step 4) isn’t assembled yet — and it’s what tells you which paid-tier features actually render vs. are only permission-wired. That now sits in the checklist below.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-title">Readiness checklist</div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--crit)"></i> Blocker — launch can't happen without it</span>
+      <span><i class="dot" style="background:var(--high)"></i> High — needed for a credible launch</span>
+      <span><i class="dot" style="background:var(--na)"></i> Standard — do it, not a gate</span>
+      <span><i class="dot" style="background:var(--accent)"></i> <b style="color:var(--accent)">AFTER</b> = ongoing management</span>
+    </div>
+    <div id="list" style="margin-top:14px"></div>
+  </section>
+
+  <footer class="foot">
+    <span id="savednote">Progress is saved in this browser only.</span>
+    <button class="reset" id="resetBtn">Reset all progress</button>
+  </footer>
+</main>
+
+<script>
+const LAUNCH = new Date('2026-12-15T00:00:00');
+const STORE = 'slp-launch-readiness-v1';
+
+const STACK = [
+  {k:'Web frontend', v:'Cloud Run', why:'Containerised Next.js (output:standalone) — full SSR + API routes, autoscaling, custom domain. Firebase App Hosting is the managed git-push alternative.'},
+  {k:'Engine (Python)', v:'Cloud Run — EU region', why:'Containerised FastAPI (uvicorn). Scales to zero; the public URL is locked by Cloud Run IAM (--no-allow-unauthenticated). Pick an EU region (e.g. europe-west1) for data residency.'},
+  {k:'Container images', v:'Artifact Registry', why:'Private Docker registry for both service images, same region.'},
+  {k:'Build & deploy', v:'Cloud Build + GitHub Actions', why:'Build images on push and deploy to Cloud Run; keep GitHub Actions as the trigger + test gate.'},
+  {k:'Secrets', v:'Secret Manager', why:'Every key (Supabase, OpenAI/Anthropic, Stripe, Resend, service token) mounted into Cloud Run — never in the image or git.'},
+  {k:'Edge / CDN / WAF', v:'Load Balancing + Cloud CDN + Cloud Armor', why:'Public entry for the web service: custom domain, managed TLS, CDN caching, WAF/DDoS rules.'},
+  {k:'Logs / metrics / errors', v:'Cloud Logging + Monitoring + Error Reporting', why:'GCP-native observability for both services. Sentry optional on top for richer release tracking.'},
+  {k:'Rate limiting', v:'Memorystore (Redis) — or Upstash', why:'Durable, cross-instance limiter. Memorystore is GCP-native; Upstash serverless is cheaper at launch scale.'},
+  {k:'Database + Auth', v:'Supabase — EU (keep)', why:'Already wired; keep it. All-Google option later: Cloud SQL + Identity Platform — a migration, not worth it now.'},
+  {k:'Payments', v:'Stripe (built) — MoR alt', why:'Stripe checkout + webhook are built and test-verified. Stripe gives control + lower fees; you own EU VAT via Stripe Tax. Paddle/LemonSqueezy (MoR) was the VAT-absorbing alternative.'},
+  {k:'Email + bot defense', v:'Supabase · Resend · Turnstile', why:'Auth emails send via Supabase today. Resend is declared but not yet used — it is for production deliverability + billing mail. Turnstile (bot defense) is wired.'},
+];
+
+const CATS = [
+  { id:'host', name:'Hosting & infrastructure (Google Cloud)', items:[
+    {t:'GCP project, billing, IAM & region', pre:'Create the prod project, enable billing, choose ONE EU region (e.g. europe-west1) for data residency, and give each service a least-privilege service account.', on:'Review IAM + set billing budget alerts.', crit:'blocker'},
+    {t:'Engine → Cloud Run (FastAPI)', pre:'Deploy uvicorn service.api:app as a container. The existing Dockerfile runs STREAMLIT, not the API — write a FastAPI Dockerfile binding 0.0.0.0:$PORT. Deploy --no-allow-unauthenticated (Cloud Run IAM gates it).', on:'Autoscales to zero; patch the base image on dependency bumps.', crit:'blocker'},
+    {t:'Web → Cloud Run (Next.js)', pre:'Add output:\'standalone\' to next.config + a Dockerfile; deploy as a public container. (Firebase App Hosting is the managed git-push alternative.)', on:'Watch instance count, cold starts, p95 latency.', crit:'blocker'},
+    {t:'Artifact Registry + build/deploy pipeline', pre:'Create a Docker repo in Artifact Registry; build images with Cloud Build (or GitHub Actions) and deploy to Cloud Run on push.', on:'Prune old images.', crit:'high'},
+    {t:'Web→engine link (ID token)', pre:'Engine --no-allow-unauthenticated (Cloud Run IAM); grant the web SA run.invoker and call the engine with a Google ID token (audience = the engine URL). Keep EXTRACT_SERVICE_TOKEN as defense-in-depth — now sent in X-Extract-Token. Point ENGINE_EXTRACT_URL at the engine service URL (= the ID-token audience).', on:'Audit the invoker binding; 403 from a browserless curl is the healthy signal.', crit:'blocker'},
+    {t:'Domain, TLS & edge', pre:'Map the custom domain (Cloud Run domain mapping, or a Load Balancer + Cloud CDN + Cloud Armor for CDN/WAF); Google-managed TLS; set NEXT_PUBLIC_SITE_URL.', on:'Certs auto-renew — alert on failures.', crit:'blocker'},
+    {t:'Domain registrar — Namecheap', pre:'Domain registered at Namecheap, expires 5 Aug 2029. Point its DNS at the Cloud Run / Load Balancer target (or delegate the zone to Cloud DNS), verify domain ownership for the Cloud Run mapping, and enable 2FA on the Namecheap account.', on:'Keep auto-renew ON and renew before 5 Aug 2029; update DNS records if services move.', crit:'high'},
+    {t:'Secrets in Secret Manager', pre:'Put every secret (Supabase, OpenAI/Anthropic, Stripe, Resend, service token) in Secret Manager and mount into each Cloud Run service. Never in the image or git. (The Project Assistant needs OPENAI_API_KEY on the engine to answer — without it the assistant fails closed with "not available".)', on:'Rotate on a schedule and on any suspected leak.', crit:'high'},
+    {t:'Staging environment', pre:'A second set of Cloud Run services (staging) + a Supabase branch, wired to test keys.', on:'Promote to prod only after staging passes.', crit:'high'},
+  ]},
+  { id:'data', name:'Data, auth & identity', items:[
+    {t:'Supabase production project (EU)', pre:'Create the prod project in an EU region; set SUPABASE_URL / ANON_KEY / SERVICE_ROLE_KEY in both services.', on:'Monitor connections, storage, usage tier.', crit:'blocker'},
+    {t:'Row-Level Security audit', pre:'BASELINE DONE (12 Oct): every table RLS-on + owner-scoped; service role writes grants, clients can’t self-grant; storage INSERT finding (F1) fixed in prod; service-role key hygiene, storage UPDATE/DELETE, SECURITY DEFINER and Realtime (not used) all verified. The pre-launch re-audit on prod remains the go/no-go gate.', on:'Re-audit whenever a table or policy changes, and once more just before launch.', crit:'blocker'},
+    {t:'Auth emails (Supabase)', pre:'Supabase Auth already sends confirm / reset / magic-link emails. Brand the templates; for production, route Supabase SMTP through a real provider (Resend) so they send from your domain, not Supabase’s rate-limited shared sender.', on:'Keep copy + links current.', crit:'high'},
+    {t:'Email delivery provider (Resend)', pre:'DONE ✓ — the email stack is working: inbound admin@/support@/privacy@ forwarding (Cloudflare Email Routing) + outbound auth/transactional via Resend (domain verified, Supabase custom SMTP, Gmail send-as). Billing mail (receipts/VAT invoices/dunning) hooks in once payments go live.', on:'Monitor deliverability + bounce rate.', crit:'high'},
+    {t:'Password-reset flow', pre:'End-to-end test the existing reset page against prod auth.', on:'Re-test after any auth change.', crit:'high'},
+    {t:'Google OAuth', pre:'Code complete (buttons, signInWithOAuth, /auth/callback). Register the OAuth client in Google Cloud + paste it into Supabase → Providers → Google; set NEXT_PUBLIC_OAUTH_GOOGLE.', on:'Renew credentials before expiry.', crit:'high'},
+    {t:'Apple OAuth', pre:'Deferred: needs the paid Apple Developer account ($99/yr), a Service ID, a .p8 key + domain verification. Hide the button (NEXT_PUBLIC_OAUTH_APPLE=false) until then.', on:'Rotate the Apple key every 6 months (Apple requirement).', crit:'high'},
+    {t:'Backups + restore drill', pre:'Procedure documented in BACKUPS.md. Enable point-in-time recovery (PITR) in Supabase, then run one real restore into a throwaway DB to prove it works (download backup → restore → verify row counts / a known project / auth.users → tear down). Drill still to run.', on:'Verify backups monthly.', crit:'high'},
+    {t:'Plan schema-version migration path', pre:'TODAY: project_inputs.schema_version is stamped =1 on save (planStore.ts) but never read back — loadPlans ignores it — and PlanInput is extra="forbid", so a breaking input-schema change would drop fields or fail validation on plans saved by the old build. BUILD before real users store plans: (1) CURRENT_SCHEMA_VERSION in one shared place; (2) a migrator registry MIGRATIONS[n]=(inputs)=>inputs upgrading v(n)→v(n+1), pure + additive; (3) on load, read schema_version, run migrators in sequence up to CURRENT, then deserialize (unknown/newer version fails loudly); (4) on save, stamp CURRENT not a literal 1; (5) a fixtures test: one saved-plan JSON per historical version, each must migrate + deserialize green. Not a beta blocker; required before public launch. Full spec in the section above.', on:'Bump CURRENT_SCHEMA_VERSION + add a migrator whenever the input schema changes; keep the fixtures test green.', crit:'high'},
+  ]},
+  { id:'pay', name:'Payments & billing (full, in scope)', items:[
+    {t:'Choose provider: Paddle/Lemon Squeezy (MoR) vs Stripe', pre:'Decided — Stripe. The checkout + webhook are built on Stripe; you own EU VAT via Stripe Tax (STRIPE_TAX_ENABLED, off until VAT-registered). MoR (Paddle/Lemon Squeezy) was the VAT-absorbing alternative if you’d rather not own tax.', on:'Reconcile fees/payouts monthly.', crit:'blocker'},
+    {t:'Products & prices → tiers', pre:'Define exactly what tier_1 and tier_2 include; create matching products/prices in the provider. The catalog-driven scripts/stripe-setup.mjs creates the 3 Stripe prices from the catalog (idempotent).', on:'Version price changes; grandfather existing customers.', crit:'blocker'},
+    {t:'Checkout flow', pre:'BUILT ✓ — real hosted Stripe Checkout from the upgrade modal, with server-side upgrade pricing (one-time difference / subscription credit, computed from the catalog so it can’t be tampered with). Verified end-to-end in test mode. Re-verify once in live mode.', on:'Monitor conversion + failed checkouts.', crit:'blocker'},
+    {t:'Webhook → entitlements', pre:'BUILT ✓ — the signature-verified /api/stripe-webhook is the ONLY writer of paid tier_grants (idempotent delete-then-insert per source_sku); grants on paid checkout, renews/revokes on subscription events. Test-verified end-to-end. In prod, register the live endpoint + its permanent signing secret — see StartUPlan_Web/docs/deploy.md.', on:'Alert on webhook failures — a missed event = a wrongly-tiered user.', crit:'blocker'},
+    {t:'Subscription lifecycle', pre:'Webhook handles renew/cancel → grant extend/revoke (customer.subscription.updated / .deleted) ✓. Remaining: upgrade/downgrade proration UX, payment-failed + dunning recovery.', on:'Watch involuntary churn and dunning recovery.', crit:'blocker'},
+    {t:'Tax / VAT', pre:'Stripe Tax wiring is in place but DORMANT (STRIPE_TAX_ENABLED=false): enable it + register for VAT/OSS as an EU seller, or move to an MoR that handles it.', on:'File returns (or confirm the MoR does).', crit:'blocker'},
+    {t:'Customer / billing portal', pre:'BUILT ✓ (test mode) — provider-hosted portal wired for card / plan / cancellation, plus "renews in N days". Re-verify in live mode.', on:'Handle support requests for billing.', crit:'high'},
+    {t:'Invoices & receipts', pre:'Automatic receipts on payment; VAT-compliant invoices.', on:'Keep records for accounting/audit.', crit:'high'},
+    {t:'Disable trial flags in prod', pre:'ALLOW_TRIAL_UPGRADES and NEXT_PUBLIC_TRIAL_UPGRADES off; purge trial grants (source_sku=\'trial\'). Also purge test Stripe grants before launch: delete from public.tier_grants where source_sku like \'stripe:%\'.', on:'Keep the flag off.', crit:'high'},
+  ]},
+  { id:'ai', name:'AI / LLM providers', items:[
+    {t:'AI assistant — Project Assistant built (Phase 1–4)', pre:'BUILT ✓ — the floating, project-scoped assistant now ships in the dashboard: grounded answers with citations + model-change proposals you Apply → recompute (validated against an editable-field whitelist, addressed by name not index — no off-catalog write lands), small/large model tiers, a per-user cost meter + rate/daily caps, and a fail-closed scope guard (engine /plan/assistant + web /api/assistant + tests). It needs OPENAI_API_KEY on the engine to answer live. Design refs: the <a href="https://github.com/senatoreavita/StartUPlan_Web/blob/dashboard_2026_10_25/docs/ai-copilot.md" target="_blank" rel="noopener">implementation &amp; safety spec</a> and the live <a href="https://claude.ai/artifact/1UiZ6gxjLqsLthjjuUFAaL" target="_blank" rel="noopener">Pricing Model</a>. Core principle holds: the LLM orchestrates, the engine computes — every number stays engine-authoritative.', on:'Meter the AI (credits/packs + BYOK on Advisor); keep the core modeling loop free within a tier; size allowances from real usage.', crit:'standard'},
+    {t:'OpenAI production account', pre:'Prod key, hard spend cap + budget alerts; set OPENAI_API_KEY (also powers plan extraction AND the Project Assistant).', on:'Watch spend vs signups; the recent 8k-token cap drives per-extraction cost.', crit:'blocker'},
+    {t:'Anthropic production account', pre:'Prod key for the fallback/large-plan path; spend cap; set ANTHROPIC_API_KEY.', on:'Same cost monitoring as OpenAI.', crit:'high'},
+    {t:'Provider & fallback policy', pre:'Set AI_PROVIDER; decide fallback behaviour when a provider errors or is slow.', on:'Revisit as model prices/quality shift.', crit:'standard'},
+    {t:'Extraction cost model', pre:'Estimate cost per signup (plan size × token use) and bake it into pricing.', on:'Track cost-per-active-user monthly.', crit:'high'},
+    {t:'Abuse limits on AI routes', pre:'Rate-limit /extract, /custom-inquiry AND /plan/assistant per user (cost-incurring). The assistant already clamps model tier + output tokens server-side and caps per-minute + per-day; make those caps durable (see rate limiting).', on:'Watch for runaway usage / scraping.', crit:'standard'},
+  ]},
+  { id:'sec', name:'Security & reliability', items:[
+    {t:'Durable rate limiting', pre:'Move the in-memory limiter (WEB-SEC-14) to Memorystore (Redis) or Upstash so caps hold across Cloud Run instances. Covers the compute routes AND the Project Assistant’s per-user rate + daily budget caps (in-memory today).', on:'Tune limits from real traffic.', crit:'blocker'},
+    {t:'Engine isolation (ID token) + service-token backstop', pre:'Implemented via Cloud Run IAM — engine --no-allow-unauthenticated, the web presents a Google ID token (see Hosting); EXTRACT_SERVICE_TOKEN stays as defense-in-depth, now sent in X-Extract-Token. Identity stays at the edge — the web resolves tier server-side and sends (inputs, access_tier) only, never a user.', on:'Rotate the token periodically; audit the invoker binding.', crit:'blocker'},
+    {t:'Error + log tracking', pre:'Cloud Error Reporting + Cloud Logging on both services, with alerting policies. Sentry optional for richer release/source-map tracking.', on:'Triage new issues daily post-launch.', crit:'blocker'},
+    {t:'RLS-drift CI assertion', pre:'DONE ✓ — a static test (supabase/migrations/rls-coverage.test.ts) fails the build if any public table ships RLS-off, has a non-owner-scoped user_id policy, or is unconditionally permissive. Passes on the current schema; guards every future migration.', on:'Keep it green; extend it as new tables land.', crit:'high'},
+    {t:'Security review + pen test', pre:'Run the /security-review pass; consider an external pen test before launch.', on:'Repeat on major changes.', crit:'high'},
+    {t:'Structured logging', pre:'JSON logs with request ids on both services; a retention window.', on:'Keep logs searchable for incidents.', crit:'high'},
+    {t:'Dependency & secret scanning', pre:'Dependabot + secret scanning on both repos (deps already pinned — good).', on:'Review and merge security bumps.', crit:'standard'},
+    {t:'Incident runbook', pre:'Write down: who (you), how you’re paged, rollback steps, status comms.', on:'Update after each incident.', crit:'high'},
+  ]},
+  { id:'obs', name:'Observability & ops', items:[
+    {t:'Health & readiness endpoints', pre:'Add /health (and /ready) to the engine; a lightweight web health route.', on:'These back your uptime checks.', crit:'blocker'},
+    {t:'Uptime monitoring + alerts', pre:'Cloud Monitoring uptime checks on both services + alerting policies to phone/email (Better Stack/Checkly optional).', on:'Acknowledge + respond to alerts.', crit:'blocker'},
+    {t:'Ops dashboards', pre:'A Cloud Monitoring dashboard: compute latency, error rate, LLM spend, payment events.', on:'Glance daily; dig on anomalies.', crit:'high'},
+    {t:'Load-test the engine', pre:'Stress the heavy path (Monte Carlo, large plans) to size the host and set timeouts.', on:'Re-test before expected traffic spikes.', crit:'high'},
+    {t:'Cost monitoring', pre:'Budget alerts across Vercel, Render, Supabase, OpenAI, Anthropic, payments.', on:'Review monthly burn vs revenue.', crit:'high'},
+  ]},
+  { id:'legal', name:'Legal & compliance (EU / Ireland)', items:[
+    {t:'Incorporate the company (legal entity)', pre:'Company incorporated ✓ and VAT registered ✓ (number in hand) — the two longest-lead legal blockers are cleared. Still open (external): the business bank account (opening meeting imminent) + the trading-name (business-name) registration. The bank gates live payouts — Stripe can’t pay out without it, and bank onboarding can take weeks.', on:'Keep filings current (annual return, VAT returns).', crit:'blocker'},
+    {t:'Company legal details in the app', pre:'Entity now set up ✓ — replace the COMPANY.* placeholders in terms (legal name, trade name, legal form, governing law) with the real entity + the VAT number.', on:'Keep current if the entity changes.', crit:'blocker'},
+    {t:'Terms of Service', pre:'Finalise ToS incl. the [TODO] refund policy; legal review. (The EU withdrawal-rights / non-refundable-sales note is drafted — see the companion artifact.)', on:'Version + notify on material changes.', crit:'blocker'},
+    {t:'Privacy Policy + sub-processors', pre:'Finalise; list sub-processors (OpenAI, Anthropic, Supabase, Google Cloud, Stripe, Resend, Cloudflare, analytics).', on:'Update when a sub-processor changes.', crit:'blocker'},
+    {t:'GDPR basis + DPA', pre:'Document lawful basis + data map; sign DPAs with each sub-processor.', on:'Annual review.', crit:'blocker'},
+    {t:'Cookie consent', pre:'Consent banner + policy if analytics/marketing cookies are used.', on:'Keep the vendor list in sync.', crit:'high'},
+    {t:'Data subject rights', pre:'A working path for data export + erasure requests.', on:'Respond within the statutory window.', crit:'high'},
+  ]},
+  { id:'product', name:'Product finalisation ("all fields of the web app")', items:[
+    {t:'Pricing & tier definitions locked', pre:'Decide what tier_0/1/2 unlock — then reconcile against the features catalog: charts, PDF chapters and web statements/ratios/scenarios are permission-wired but status:planned (not yet rendered). Don’t sell a tier for features that don’t render yet. (Sensitivity is now Plan/tier_1; Monte Carlo stays Bankable/tier_2.)', on:'Revisit with usage data.', crit:'blocker'},
+    {t:'Features catalog & planned→live scope', pre:'Assemble/confirm features.catalog.json (roadmap step 4 — not in the repos yet): map each feature → surface (sh_* Excel / WEB_* / PDF_*) → tier → status. Flip planned→live for everything a paid tier advertises at launch.', on:'Flip planned→live as rendering ships; keep the matrix generated, not hand-kept.', crit:'blocker'},
+    {t:'i18n completeness (EN / FR / UA / IT)', pre:'DONE ✓ for the app — EN/FR/UA/IT complete and converged: phone and web share one key set across all four locales, an in-place language switch keeps the current view + open sheet, and aria-labels route through the same keys. Remaining: keep marketing + legal copy translated as it lands.', on:'Translate new strings as they ship.', crit:'high'},
+    {t:'SEO & social', pre:'Meta tags, OG images, sitemap, robots for the marketing + locale routes.', on:'Track search/referral performance.', crit:'high'},
+    {t:'Marketing copy finalised', pre:'Lock landing/pricing/FAQ copy; remove placeholders.', on:'Iterate from conversion data.', crit:'high'},
+    {t:'Failure-state UX', pre:'Polish extraction-failure, compute-failure and paywall states (the /extract 502 class of errors). The upgrade-button silent-failure fix (visible error on a failed checkout) is on dashboard_2026_10_25.', on:'Watch which errors users actually hit.', crit:'standard'},
+    {t:'Export builder dialog (Excel / PDF / PPT) — Export Center', pre:'BUILT ✓ — the "Export model" dialog ships: pick a format (Excel with scenario scope base/all, business-plan PDF, pitch-deck PPT, or a how-to-read guide). Engine exporters (build_sme_excel/pdf/pptx/guide_export) + web dialog + /api/export routing + tests. The PPT path needs python-pptx on the engine. Remaining: per-section include/exclude manifest + single-table extraction.', on:'Keep the include-manifest in sync as new sheets/sections ship.', crit:'high'},
+    {t:'Retire or quarantine Streamlit', pre:'Decide before containerising: the current engine Dockerfile launches Streamlit (app.py). Either drop app.py + core/ui (removes the 16 test failures + a dependency surface) or keep it strictly as a local dev tool, never deployed to Cloud Run.', on:'If kept, never expose it publicly.', crit:'standard'},
+    {t:'Remove dev flags & debug', pre:'STARTUPLAN_DEBUG off; trial flags off; environment=production everywhere.', on:'Keep prod config clean.', crit:'high'},
+    {t:'Accessibility pass', pre:'Keyboard, focus, contrast and labels across the core flows.', on:'Include a11y in future QA.', crit:'standard'},
+  ]},
+  { id:'cicd', name:'CI/CD & release', items:[
+    {t:'Deploy pipelines', pre:'GitHub Actions / Cloud Build → Cloud Run (both services), gated on tests. Rollout with Cloud Run revisions.', on:'Keep green; fix flakes fast.', crit:'high'},
+    {t:'Parity/bench harness in CI', pre:'Run the engine parity + bench on every PR so math/perf can’t regress silently.', on:'Update baselines only on intentional change.', crit:'standard'},
+    {t:'Shared-contract parity guard (both repos)', pre:'CI fails if the shared contracts drift between repos — inputs.catalog.json, entitlements.contract.json and the render DTO must stay byte-identical and parity-tested (the one-source-of-truth principle).', on:'A contract change is a lockstep edit in both repos; the guard catches a one-sided change.', crit:'high'},
+    {t:'Rollback procedure', pre:'Use Cloud Run revisions — keep the last good revision and shift traffic back in one step; test it once.', on:'Use it without hesitation when needed.', crit:'high'},
+    {t:'Go / no-go checklist', pre:'A final launch-day checklist: all blockers closed, monitoring live, payments verified with a real transaction. The deploy runbook is StartUPlan_Web/docs/deploy.md.', on:'Reuse for every major release.', crit:'high'},
+  ]},
+];
+
+// ---- state ----
+let done = new Set();
+try { const raw = localStorage.getItem(STORE); if (raw) done = new Set(JSON.parse(raw)); } catch(e){}
+function save(){ try { localStorage.setItem(STORE, JSON.stringify([...done])); } catch(e){} }
+// Items confirmed complete (code built / decided / verified). Seeded into each viewer's
+// checklist ONCE per SEED_VERSION — additive only: it never unticks a row you set, and a
+// deploy/go-live item is deliberately NOT seeded (those aren't done until Block B runs).
+// Bump SEED_VERSION whenever this list changes so returning viewers pick up the delta.
+const SEED_VERSION = 1;
+const SEED_DONE = ['data-3','pay-0','pay-1','pay-2','pay-3','pay-6','ai-0','sec-1','sec-3','product-2','product-6','product-7'];
+try {
+  const seedKey = STORE + ':seed';
+  if (parseInt(localStorage.getItem(seedKey) || '0', 10) < SEED_VERSION) {
+    SEED_DONE.forEach(id => done.add(id));
+    localStorage.setItem(seedKey, String(SEED_VERSION));
+    save();
+  }
+} catch(e) { SEED_DONE.forEach(id => done.add(id)); }
+
+// stable id per item
+CATS.forEach(c => c.items.forEach((it,i) => it.id = c.id + '-' + i));
+const ALL = CATS.flatMap(c => c.items);
+
+// ---- render stack (each card jumps to its checklist section) ----
+const STACK_JUMP = {
+  'Web frontend':'host', 'Engine (Python)':'host', 'Container images':'host',
+  'Build & deploy':'cicd', 'Secrets':'host', 'Edge / CDN / WAF':'host',
+  'Logs / metrics / errors':'obs', 'Rate limiting':'sec', 'Database + Auth':'data',
+  'Payments':'pay', 'Email + bot defense':'sec',
+};
+const CAT_NAME = Object.fromEntries(CATS.map(c => [c.id, c.name]));
+document.getElementById('stack').innerHTML = STACK.map(s => {
+  const cat = STACK_JUMP[s.k] || '';
+  return `<div class="scard" role="button" tabindex="0" data-jump="${cat}" title="Jump to ${CAT_NAME[cat]||''}">
+    <div class="k">${s.k}</div><div class="v">${s.v}</div><div class="why">${s.why}</div>
+    <span class="jump">Jump to section ↓</span></div>`;
+}).join('');
+
+// ---- render list ----
+const listEl = document.getElementById('list');
+function critChip(c){ const m={blocker:'Blocker',high:'High',standard:'Standard'}; return `<span class="chip ${c}">${m[c]}</span>`; }
+listEl.innerHTML = CATS.map(c => `
+  <details class="cat" open data-cat="${c.id}">
+    <summary>
+      <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <h2>${c.name}</h2>
+      <span class="minibar"><i data-mini="${c.id}"></i></span>
+      <span class="catprog" data-catprog="${c.id}"></span>
+    </summary>
+    <div class="rows">
+      ${c.items.map(it => `
+        <label class="row" data-id="${it.id}" data-crit="${it.crit}">
+          <span class="box"><input type="checkbox" data-check="${it.id}"></span>
+          <span class="main">
+            <span class="t">${it.t}</span>
+            <div class="pre">${it.pre}</div>
+            <div class="on"><span class="tag">After</span><span>${it.on}</span></div>
+          </span>
+          <span class="meta">${critChip(it.crit)}</span>
+        </label>`).join('')}
+    </div>
+  </details>`).join('');
+
+// ---- wire checkboxes ----
+listEl.querySelectorAll('input[data-check]').forEach(cb => {
+  const id = cb.getAttribute('data-check');
+  cb.checked = done.has(id);
+  cb.closest('.row').classList.toggle('done', cb.checked);
+  cb.addEventListener('change', () => {
+    if (cb.checked) done.add(id); else done.delete(id);
+    cb.closest('.row').classList.toggle('done', cb.checked);
+    save(); refresh();
+  });
+});
+
+// ---- countdown ----
+(function(){
+  const now = new Date();
+  const days = Math.ceil((LAUNCH - now) / 86400000);
+  const el = document.getElementById('days');
+  el.textContent = days > 0 ? days : (days === 0 ? '0' : '—');
+  if (days > 21) el.classList.remove('warnish');
+})();
+
+// ---- filters ----
+let filter = 'all';
+document.querySelectorAll('.filters button[data-filter]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.filters button[data-filter]').forEach(x => x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    filter = b.getAttribute('data-filter');
+    applyFilter();
+  });
+});
+
+// Collapse all / Expand all (acts on the currently visible sections)
+const collapseBtn = document.getElementById('collapseToggle');
+collapseBtn.addEventListener('click', () => {
+  const cats = [...listEl.querySelectorAll('.cat')].filter(d => !d.classList.contains('hidden'));
+  const anyOpen = cats.some(d => d.open);
+  cats.forEach(d => { d.open = !anyOpen; });
+  collapseBtn.textContent = anyOpen ? 'Expand all' : 'Collapse all';
+});
+function applyFilter(){
+  CATS.forEach(c => {
+    let shown = 0;
+    c.items.forEach(it => {
+      const row = listEl.querySelector(`.row[data-id="${it.id}"]`);
+      let vis = true;
+      if (filter === 'open') vis = !done.has(it.id);
+      else if (filter === 'blocker') vis = it.crit === 'blocker';
+      else if (filter === 'priority') vis = it.crit === 'blocker' || it.crit === 'high';
+      row.classList.toggle('hidden', !vis);
+      if (vis) shown++;
+    });
+    const det = listEl.querySelector(`.cat[data-cat="${c.id}"]`);
+    det.classList.toggle('hidden', shown === 0);
+  });
+}
+
+// ---- progress ----
+function refresh(){
+  const tot = ALL.length, nDone = ALL.filter(it => done.has(it.id)).length;
+  document.getElementById('pDone').textContent = nDone;
+  document.getElementById('pTot').textContent = tot;
+  document.getElementById('pBar').style.width = (tot ? (nDone/tot*100) : 0) + '%';
+  const blk = ALL.filter(it => it.crit === 'blocker');
+  const blkOpen = blk.filter(it => !done.has(it.id)).length;
+  document.getElementById('blkLeft').textContent = blkOpen;
+  document.getElementById('blkLeft').classList.toggle('warnish', blkOpen > 0);
+  document.getElementById('tAll').textContent = tot;
+  document.getElementById('tOpen').textContent = tot - nDone;
+  document.getElementById('tBlk').textContent = blk.length;
+  CATS.forEach(c => {
+    const t = c.items.length, d = c.items.filter(it => done.has(it.id)).length;
+    const cp = listEl.querySelector(`[data-catprog="${c.id}"]`);
+    const mb = listEl.querySelector(`[data-mini="${c.id}"]`);
+    if (cp) cp.textContent = d + '/' + t;
+    if (mb) mb.style.width = (t ? d/t*100 : 0) + '%';
+  });
+}
+
+// ---- reset ----
+document.getElementById('resetBtn').addEventListener('click', () => {
+  done = new Set(); save();
+  listEl.querySelectorAll('input[data-check]').forEach(cb => { cb.checked = false; cb.closest('.row').classList.remove('done'); });
+  refresh();
+});
+
+// ---- jump from a stack card to its section ----
+function jumpTo(catId){
+  if (!catId) return;
+  // make sure the target is visible, whatever filter is active
+  if (filter !== 'all') {
+    filter = 'all';
+    document.querySelectorAll('.filters button').forEach(x => x.setAttribute('aria-pressed', x.getAttribute('data-filter') === 'all' ? 'true' : 'false'));
+    applyFilter();
+  }
+  const det = listEl.querySelector(`.cat[data-cat="${catId}"]`);
+  if (!det) return;
+  det.open = true;
+  det.scrollIntoView({ behavior:'smooth', block:'start' });
+  det.classList.remove('flash'); void det.offsetWidth; det.classList.add('flash');
+  setTimeout(() => det.classList.remove('flash'), 1800);
+}
+const stackEl = document.getElementById('stack');
+stackEl.addEventListener('click', e => {
+  const card = e.target.closest('.scard[role="button"]');
+  if (card) jumpTo(card.getAttribute('data-jump'));
+});
+stackEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    const card = e.target.closest('.scard[role="button"]');
+    if (card) { e.preventDefault(); jumpTo(card.getAttribute('data-jump')); }
+  }
+});
+
+refresh();
+applyFilter();
+</script>
+
+</body>
+</html>
