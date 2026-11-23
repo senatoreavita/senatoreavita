@@ -93,7 +93,7 @@ through the running app, not curl.)
   - SECURITY DEFINER fns: `handle_new_user` (signup→profiles, standard) and `increment_api_usage` (revoked from public/anon/authenticated) — both legit.
   - **Fix applied during the audit:** the `api_daily_usage` migration (durable global daily LLM cap, COST-01) was missing on prod — applied via SQL editor. Without it the app degraded to the weaker per-instance in-memory cap.
 - [ ] Provider monetary spend caps — Anthropic Console → Limits + OpenAI → Limits (hard monthly cap + alerts).
-- [ ] Backups (PITR) on + one restore drill — note: Supabase project is on the **FREE** plan (PITR usually needs Pro).
+- [ ] Backups (PITR) on + one restore drill — Supabase is on **FREE** (no backups/PITR). **Deferred to 1 Dec** (owner is aligning all paid subscriptions to that date), then upgrade to **Pro**. Interim risk: no recovery if data is lost before then — take at least one manual `pg_dump` snapshot before real testers store plans (see `BACKUPS.md`).
 - [ ] Invite-only enforcement (Auth signup settings + app-side beta gate).
 
 ## Redeploy cheatsheet
