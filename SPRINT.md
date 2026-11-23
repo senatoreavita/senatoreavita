@@ -1,6 +1,12 @@
 # Sprint — apps code-complete ✓ · now DEPLOY
 
-**Updated:** 20 Nov 2026 · 19:22 UTC
+**Updated:** 23 Nov 2026 · 16:52 UTC
+
+**Deployed ✓ (23 Nov):** engine + web are live on a private Cloud Run (staging) and
+**validated end-to-end** — sign-in + a full **Monte Carlo compute** through the ID-token
+engine door. See `DEPLOY_STATE.md`. Remaining pre-beta (B4) gates: **RLS re-audit on
+prod · provider spend caps · backups on · invite-only**.
+
 **Now (wk 8 · 23–27 Nov · deploy):** both apps are **code-complete** — web + engine
 API, the **Export Center** (Excel · PDF · PPT · how-to-read guide) and the **Project
 Assistant** are all built. **Streamlit is fully removed from the engine** (FastAPI-only;
@@ -58,9 +64,11 @@ Two feature builds, each phased like the Export Center was (modal → formats �
 - [x] **Tests** — engine export-endpoint (scope/pdf/pptx/guide) + assistant
       (facts/parse/catalog/validation/red-team/tiers) + pptx-deck; web assistant-patch +
       route + dialog. Both suites green (web **462**).
-- [ ] **Deploy prerequisites (owner):** `pip install python-pptx openai` on the engine
-      + set `OPENAI_API_KEY`, then restart — both features are code-complete but dormant
-      until the engine has them.
+- [x] **Deploy prerequisites (owner):** done via the deployed engine image —
+      `python-pptx` + `openai` are baked into the image and `OPENAI_API_KEY` /
+      `ANTHROPIC_API_KEY` are set from Secret Manager on the Cloud Run service (staging),
+      so the PPT export + Assistant can run live. *(Still to confirm live: a real PPT
+      export + an Assistant answer.)*
 
 ---
 

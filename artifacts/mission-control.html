@@ -162,7 +162,7 @@
         <li><b>Company set up ✓ · VAT registered ✓.</b> The two longest-lead legal blockers are cleared. <b>Still open (external):</b> the <b>trading-name (business-name) registration request</b> and the <b>business-bank-account meeting</b> to open the account — the bank is the final piece before live payouts. <span class="tag">bank gates live payouts</span></li>
         <li><b>Payments — built in Stripe test mode ✓.</b> Checkout → webhook → <code>tier_grants</code>, cancel/manage portal, upgrade credit and a country-aware VAT preview all work end-to-end on test keys. With the entity + VAT now done, go-live needs only the bank account + swapping test→live keys. <span class="tag ok">test mode done</span></li>
         <li><b>Email stack live ✓ · Supabase RLS baseline + drift-guard CI ✓.</b> Inbound forwarding (Cloudflare) + outbound auth/transactional via Resend; every table RLS-on + owner-scoped with a build-failing drift test. Pre-launch RLS re-audit on prod is still the go/no-go gate.</li>
-        <li><b>Next up:</b> provision Google Cloud (project · Secret Manager · Artifact Registry) and start the containerise + deploy track now the apps are code-complete.</li>
+        <li><b>Deployed ✓ (23 Nov):</b> engine + web are live on a private Cloud Run (staging) — sign-in and a full Monte Carlo compute verified end-to-end through the ID-token engine door. <b>Next up:</b> the pre-beta gates — RLS re-audit on prod, provider spend caps, backups on, invite-only — then invite testers. See <code>DEPLOY_STATE.md</code>. <span class="tag ok">staging live</span></li>
       </ol>
     </div>
   </section>
@@ -200,7 +200,7 @@
 
 <script>
 const LAUNCH = new Date('2026-12-15T00:00:00');
-const LAST_UPDATED = '2026-11-21T13:01:26Z';  // exact instant; rendered in the viewer's local time
+const LAST_UPDATED = '2026-11-23T16:52:00Z';  // exact instant; rendered in the viewer's local time
 function fmtUpdated(iso){
   try{
     const d = new Date(iso);
@@ -220,13 +220,13 @@ const GROUPS = [
       need:['It works, but it is the placeholder look','Replace it with the Next.js web app','Retire after pre-launch is live: clean cutover → keep warm ~1–2 wk as a rollback net → shut down (closes SEC-2)'],
       links:[['Open site','https://startuplan.ai'],['Cloud Run service','https://console.cloud.google.com/run/detail/europe-west1/startuplan/metrics?project=startuplan-prod',1],['Logs','https://console.cloud.google.com/logs/query?project=startuplan-prod',1]]},
     {id:'fe-final', name:'Final web app — Next.js', status:'setup',
-      what:'The polished dashboard that will replace Streamlit as the public site. Feature build is complete — dashboard KPI band + live net-CF chart, the Export Center dialog and the Project Assistant all shipped, and the phone/mobile + iPad device views are done (device-class layouts, full phone↔web i18n convergence + in-place language switch, shared chart geometry, per-metric parity). Still to deploy to Cloud Run.',
+      what:'The polished dashboard that will replace Streamlit as the public site. Feature build is complete — dashboard KPI band + live net-CF chart, the Export Center dialog and the Project Assistant all shipped, and the phone/mobile + iPad device views are done (device-class layouts, full phone↔web i18n convergence + in-place language switch, shared chart geometry, per-metric parity). Deployed to Cloud Run (staging) ✓ — startuplan-web-861173221940.europe-west1.run.app; sign-in + compute verified.',
       need:['Phone + iPad device views — complete ✓ (device-class layouts · i18n · parity)','Deploy the Next.js app to Cloud Run (output:standalone + Dockerfile)','Point startuplan.ai at it','Say to Claude: “deploy the web app”'],
       links:[['Web repo','https://github.com/senatoreavita/StartUPlan_Web',1],['Cloud Run (prod)','https://console.cloud.google.com/run?project=startuplan-prod',1]]},
   ]},
   {g:'Backend · "Google back"', items:[
     {id:'be-engine', name:'Engine API — FastAPI', status:'setup',
-      what:'The Python financial engine (NPV / IRR / exports / assistant). The Cloud Run container is BUILT ✓ (uvicorn Dockerfile; Cyrillic PDF font added) — it just has not been deployed yet; runs locally today. Endpoints: /plan/export (Excel/PDF/PPT/guide) and /plan/assistant (grounded Q&A + proposals).',
+      what:'The Python financial engine (NPV / IRR / exports / assistant). The Cloud Run container is deployed ✓ to a private Cloud Run (staging), IAM-locked (--no-allow-unauthenticated); the web reaches it with a Google ID token, and a full Monte Carlo compute verified it live. Endpoints: /plan/export (Excel/PDF/PPT/guide) and /plan/assistant (grounded Q&A + proposals).',
       need:['FastAPI Dockerfile (uvicorn service.api:app) ✓ written','Pre-deploy code hygiene ✓ — removed legacy controller.py + the dead Streamlit plan_cache; deduped the gearing KPI into debt_to_capital (both repos, suites green)','Deploy to Cloud Run with --no-allow-unauthenticated (Cloud Run IAM) — the web calls it with a Google ID token + X-Extract-Token backstop; grant the web SA roles/run.invoker','Install python-pptx (PPT export) + set OPENAI_API_KEY (assistant) on the service','Say to Claude: “deploy the engine”'],
       links:[['Core repo','https://github.com/senatoreavita/startuplan-core',1],['Cloud Run (prod)','https://console.cloud.google.com/run?project=startuplan-prod',1]]},
     {id:'be-infra', name:'GCP infra', status:'setup',

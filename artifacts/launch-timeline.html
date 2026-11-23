@@ -166,7 +166,7 @@
 <script>
 const LAUNCH = new Date('2026-12-15T00:00:00');
 // REMINDER: bump UPDATED to the current UTC time on EVERY edit/republish of this timeline.
-const UPDATED = '2026-11-21T13:01:26Z';
+const UPDATED = '2026-11-23T16:52:00Z';
 // Week columns — Monday-aligned, Mon–Fri working weeks. Wk1 = Mon 5 Oct. The apps
 // are code-complete; wk 8 (Mon 23 Nov) is now the active DEPLOY week, with a private
 // invite-only beta pulled forward to wk 9 and the public launch holding at 15 Dec (Wk11).
@@ -208,8 +208,8 @@ const ROWS = [
   {g:'Deploy & private beta — the only gap to letting people in (now)'},
   {t:'Engine → FastAPI container — Dockerfile swapped to uvicorn service.api:app; Streamlit removed from the engine; /health live ✓ done', s:8, n:1, c:'done'},
   {t:"Web → standalone container — output:'standalone' + Dockerfile added ✓ done", s:8, n:1, c:'done'},
-  {t:'GCP project · billing · IAM · EU region · Secret Manager · Artifact Registry', s:8, n:1, c:'high'},
-  {t:'Deploy engine + web → private Cloud Run — engine --no-allow-unauthenticated (Cloud Run IAM gates it) + web mints a Google ID token + X-Extract-Token backstop; grant the web SA roles/run.invoker on the engine · /health checks. Commands: DEPLOY_CLOUD_RUN.md', s:8, n:2, c:'blk'},
+  {t:'GCP project · billing · IAM · EU region · Secret Manager · Artifact Registry ✓ done', s:8, n:1, c:'done'},
+  {t:'Deploy engine + web → private Cloud Run — engine --no-allow-unauthenticated (Cloud Run IAM) + web mints a Google ID token + X-Extract-Token backstop; web SA granted roles/run.invoker on the engine ✓ done — staging live & validated end-to-end (login + Monte Carlo compute). See DEPLOY_STATE.md', s:8, n:2, c:'done'},
   {t:'Set engine OPENAI_API_KEY (+ ANTHROPIC) — unblocks AI extract + the Assistant · set provider spend caps', s:8, n:1, c:'high'},
   {t:'Invite-only gate for the beta — allowlist / beta flag (open signup stays off)', s:8, n:1, c:'high'},
   {t:'Backups (PITR) on + one restore drill (BACKUPS.md)', s:8, n:1, c:'high'},
