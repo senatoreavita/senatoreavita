@@ -35,6 +35,41 @@ enforce** (balance, deduct, top-up) priced from Phase-1 data.
 
 ---
 
+## 0b. Work by layer — the scheme (what gets built where)
+
+```
+   USER
+    │  clicks "Describe project" / asks the Assistant / exports a PDF
+    ▼
+┌───────────────┐   call    ┌─────────────────────┐   measure   ┌──────────────────┐
+│  FRONTEND     │──────────▶│  WEB ROUTES         │────────────▶│  ENGINE (Python) │
+│  (React UI)   │           │  (Next.js /api/*)   │  usage ◀────│  reports tokens  │
+│               │◀──────────│                     │             │  + our cost      │
+│ balance • pie │  balance  │ log • reserve •     │             └──────────────────┘
+│ history•topup │           │ settle • grant      │
+└───────────────┘           └───────┬─────────────┘
+                                     │ writes (service role only)
+                      ┌──────────────┼───────────────┐
+                      ▼                               ▼
+             ┌─────────────────┐             ┌─────────────────┐
+             │  SUPABASE (DB)  │             │  STRIPE         │
+             │ usage log •     │             │ one-time token  │
+             │ token buckets • │◀────webhook─│ pack purchase   │
+             │ ledger • RPCs   │   grants    │ (+ VAT)         │
+             └─────────────────┘             └─────────────────┘
+```
+
+| Layer | What gets added | **Plain words — what it actually does** | Phase |
+|---|---|---|---|
+| **Frontend** (web UI) | Balance readout by `TierBadge`; **allowance pie + "Top up"** in `AssistantDrawer`; pre-submit "~N tokens" in Describe/Export dialogs; **usage-history** view; **top-up modal**; `tokens` strings ×4 locales | What the user *sees*: how many tokens are left (a little pie on the AI box), their call history, and a button to buy more when low. | P2 |
+| **Backend — Engine** (Python) | `pricing.py` (all model prices incl. cache); `llm.py` wrapper; every AI endpoint returns `usage` (export via a header) | Make the AI engine *report* how many tokens each call used and what it cost **us** — for both OpenAI and Anthropic. | P1 |
+| **Backend — Web routes** (Next.js) | `aiUsage.ts` (log); `tokenWallet.ts`; reserve→settle in routes; webhook token-grant branch; checkout pack support; admin COGS page | The server *records* every call, *checks the balance before* spending, and hands out / charges tokens. Nothing happens in the browser. | P1 + P2 |
+| **Supabase** (database) | `ai_usage_log` (P1); `token_grants` + `token_ledger` + `byok_keys` (P2); RPCs grant/consume/refund/balance; RLS | Where the numbers *live*: a log of every call, each person's token buckets, an audit trail — with safe rules so only the server can change them. | P1 + P2 |
+| **Stripe** | Token-pack products (one-time `payment`); webhook branch to credit tokens; Stripe Tax (VAT) | How people *pay* to top up — an ordinary one-time purchase, VAT handled automatically. | P2 |
+| **Config / Ops** | `aiTokens` per tier + `tokenPacks` in the catalog; `AI_METERING_ENABLED` kill-switch; cost-spike email alert; price-verified date | The *dials you turn*: how many tokens each plan includes, pack prices, and an on/off switch for the whole thing. | P1 + P2 |
+
+---
+
 ## 1. Current state (grounded in the code)
 
 ### Engine (`startuplan-core`)
@@ -321,3 +356,33 @@ engine `pricing.py` + `llm.py` wrapper; `usage` on all AI endpoints (+ `X-AI-Usa
 
 ## 10. Open pricing inputs (fill after Phase 1)
 `aiTokens` per tier (draft trial · plan · bankable · advisor monthly) · token→€ in packs (markup over measured COGS per 1k tokens) · pack sizes · low-balance warning threshold · BYOK eligibility (Advisor only vs opt-in for all).
+
+---
+
+## 11. Best task sequence (do them in this order)
+
+### Phase 1 — Measure (ship first; no user-visible change)
+1. **Engine · `pricing.py`** — one price table, all models in use, incl. Anthropic + cache rates. *Verify numbers against the provider pricing pages.*
+2. **Engine · `llm.py` wrapper** — one function every AI call goes through; returns `(text, usage)` for both OpenAI and Anthropic.
+3. **Engine · route all call sites** through the wrapper (`plan_extractor`, `assistant`, `plan_writer`, `reviewer`, `guided_interpreter`) and **return `usage`** on every AI endpoint (export via the `X-AI-Usage` header).
+4. **Engine · tests** (pricing coverage, usage parsing for both providers).
+5. **Supabase · `ai_usage_log`** migration + RLS (read-own, service-role write) + add to `rls-coverage.test.ts`.
+6. **Web · `aiUsage.ts`** logger (fail-open).
+7. **Web · call `logAiUsage`** in each AI route after a successful engine call.
+8. **Web · route tests** (logs on success; fail-open; export reads the header).
+9. **Measure** — COGS rollup SQL; run real calls; read actual €/action.
+10. **⛔ STOP — review + set the pricing numbers** (allowances, pack sizes/prices, markup) into config.
+
+### Phase 2 — Enforce + top-up (behind `AI_METERING_ENABLED`, default off)
+11. **Supabase · wallet** — `token_grants` + `token_ledger` + `byok_keys` migrations; RPCs `grant_tokens` / `token_balance` / `consume_tokens` / `refund_tokens` (atomic, idempotent); RLS + rls-coverage.
+12. **Web · `tokenWallet.ts`** — `getBalance` / `reserveTokens` / `settle` / `grantTokens`.
+13. **Web · reserve→settle** in metered routes (402 on empty; refund on failure) — gated by the kill-switch.
+14. **Web · allowance grant** on tier purchase (extend `writeGrant`).
+15. **Stripe + Web · top-up packs** — one-time products; checkout accepts pack ids; **webhook** credits tokens (idempotent; Stripe Tax for VAT).
+16. **Config · numbers** — `aiTokens` per tier + `tokenPacks` filled in.
+17. **Frontend · views** — `useTokenBalance` hook; balance by `TierBadge`; **allowance pie + "Top up"** in `AssistantDrawer`; pre-submit estimate; **usage-history** view; **top-up modal**; `tokens` i18n ×4.
+18. **Owner · admin COGS** page (allowlist-gated) + **cost-spike alert**.
+19. **BYOK** — encrypted key storage; bypass metering; never expose the key.
+20. **Tests → validate on staging → flip `AI_METERING_ENABLED` on.**
+
+> **Golden rule:** steps **1–10 are safe to ship any time** (they only *measure*). Nothing touches a user's wallet until step 13, and even then only when the kill-switch is on. So you can deploy Phase 1 today, let real usage teach you the costs, and turn on billing when the numbers are right.
