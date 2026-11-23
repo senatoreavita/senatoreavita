@@ -84,5 +84,17 @@ through the running app, not curl.)
 - [x] End-to-end: sign in ✅ + compute (Monte Carlo) ✅. Still to try: **export** (Excel/PDF) and **assistant** (second/third engine paths).
 - [ ] Post-launch: custom domain (startuplan.ai), then rebuild web + update engine `APP_URL`/`LANDING_PAGE_URL` with the domain; revisit account consolidation.
 
+## B4 pre-open gates
+- [x] **RLS re-audit on prod — PASSED (2026-11-23).** Verified live against the prod DB (not just the static drift-guard):
+  - Every `public` table RLS-on, owner-scoped (`auth.uid()`), no `using(true)` policy.
+  - Live tables: `profiles, projects, project_inputs, project_outputs, export_files, payments, entitlements→(dropped), subscriptions, tier_grants, custom_inquiries, api_daily_usage`. `entitlements` + `plans` were **intentionally dropped** by `20260825140000_consolidate_persistence.sql` (superseded by `tier_grants` + shared `project_inputs`); their absence is correct, the drift-guard's expected-list is just stale on those two.
+  - **Money/entitlement tables** (`tier_grants`, `payments`, `subscriptions`): users have **SELECT-only** owner-scoped policies → writes are **service-role only** (Stripe webhook). No tier self-grant possible.
+  - **Storage** `exports` bucket = private; SELECT + INSERT policies both folder-scoped to `auth.uid()`.
+  - SECURITY DEFINER fns: `handle_new_user` (signup→profiles, standard) and `increment_api_usage` (revoked from public/anon/authenticated) — both legit.
+  - **Fix applied during the audit:** the `api_daily_usage` migration (durable global daily LLM cap, COST-01) was missing on prod — applied via SQL editor. Without it the app degraded to the weaker per-instance in-memory cap.
+- [ ] Provider monetary spend caps — Anthropic Console → Limits + OpenAI → Limits (hard monthly cap + alerts).
+- [ ] Backups (PITR) on + one restore drill — note: Supabase project is on the **FREE** plan (PITR usually needs Pro).
+- [ ] Invite-only enforcement (Auth signup settings + app-side beta gate).
+
 ## Redeploy cheatsheet
 Full walkthrough: `DEPLOY_QUICKSTART.md`. Reference: `DEPLOY_CLOUD_RUN.md`.
