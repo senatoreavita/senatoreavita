@@ -341,6 +341,29 @@ revoke all on function public.sweep_stale_reservations(int)                  fro
 
 > The engine stays **stateless** about billing — it only *measures*. All persistence + deduction is the web's job (it holds the service-role key + the user identity). Keep it that way.
 
+### 5a. How to add a model (checklist)
+The whole point of the `pricing.py` + `llm.py` centralisation is that adding a model is a **config change, not a code hunt**. Once Phase 1 exists:
+
+**A — Another Claude / another GPT (same provider) — ~minutes**
+- [ ] Add a price row in `core/ai/pricing.py`: `"<model-id>": (in_rate, out_rate, cache_write, cache_read)` — **verify the rates on the provider's pricing page** and bump `PRICES_VERIFIED`.
+- [ ] Point a feature (or a model *tier*) at the new model id — a config/env value or the tier→model map. No wrapper change (the `llm.py` wrapper already handles both providers' usage).
+- [ ] Add the model to the **pricing-coverage test** (every model used in code must be priced — unknown ⇒ cost 0 + a logged warning).
+- ✅ Metering, `ai_usage_log`, and billing cost it **automatically** (cost = tokens × its rate; a dearer model simply debits more tokens).
+
+**B — Expose it as a user-selectable "pro" tier (Assistant) — ~minutes–1 hr**
+- [ ] Map the Assistant's `small`/`large` `model_tier` → the model id (config). The `model_tier` plumbing + the `AssistantDrawer` selector already exist.
+- [ ] Gate the premium tier so it can't be run unbounded — by **plan** (e.g. large only on Bankable/Advisor) and/or simply by its higher **token cost** (the metering already enforces the wallet).
+- [ ] Add an i18n label for the tier in `messages/*.json` ×4.
+
+**C — A brand-new provider (e.g. Gemini) — ~1–2 hrs (one file)**
+- [ ] Add a client + a **usage-extraction branch** in `llm.py` (OpenAI-style: `prompt/completion_tokens`; Anthropic-style: `input/output` + cache). Normalise into the same `Usage` shape.
+- [ ] Add its models to `pricing.py` + the provider map; add its API key handling (Secret Manager → engine env).
+- [ ] Extend the pricing + wrapper tests to cover it.
+
+**Always:** keep `pricing.py` the single source of truth (+ `PRICES_VERIFIED` date); never let an expensive model be reachable without a plan gate or token cost; re-run the pricing-coverage test. **The real effort is *evaluating* the model's quality for the task — not the wiring.**
+
+> This ease only exists **after Phase 1**. In today's code each feature builds its own client and the price table is OpenAI-only, so adding a model now means editing every call site and mis-costing it — which is exactly what the wrapper + table fix.
+
 ---
 
 ## 6. Web changes (per file)
