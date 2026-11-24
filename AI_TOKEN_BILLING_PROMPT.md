@@ -11,7 +11,7 @@ Add **AI token metering + a token wallet with top-ups** to StartUPlan. Users see
 balance** (unit = tokens), a **remaining-allowance pie on the AI dialog**, and a **usage
 history**; they **top up** by buying tokens (one-time Stripe `payment`). AI features gate on
 balance; deterministic compute + the **Excel workbook stay free**. Owner gets a **COGS
-dashboard** + cost-spike alert. **BYOK** users bypass metering. Ship **Phase 1 first and STOP
+dashboard** + cost-spike alert. (**BYOK** — bring-your-own-key — is a later **Phase 3**, *not* in this build.) Ship **Phase 1 first and STOP
 for review** before Phase 2.
 
 ## Hard rules (do not violate)
@@ -43,10 +43,11 @@ for review** before Phase 2.
 
 ## PHASE 2 — Wallet + enforcement + top-up (only after review + pricing)
 Behind `AI_METERING_ENABLED` (default off). Implement per spec §3–§6:
-- Migrations: `token_grants`, `token_ledger`, `byok_keys` (+ RLS + rls-coverage).
-- RPCs: `grant_tokens` (idempotent), `token_balance`, `consume_tokens` (atomic, order = allowance/trial first then earliest expiry), `refund_tokens` — all SECURITY DEFINER, revoked from public/anon/authenticated.
-- `src/lib/tokenWallet.ts`: `getBalance/reserveTokens/settle/grantTokens`.
-- Metered routes: reserve `input_estimate + max_output` → `402 insufficient_tokens` if `-1`; settle actual (refund diff); refund full on engine error/refusal; `logAiUsage(billed_tokens=actual)`. BYOK ⇒ skip reserve/settle, still log.
+- Migrations: `token_grants`, `token_ledger`, `token_reservations` (+ RLS + rls-coverage). *(BYOK's `byok_keys` is Phase 3, not here.)*
+- RPCs (all SECURITY DEFINER, revoked from public/anon/authenticated): `grant_tokens` (idempotent via the unique `source_ref` constraint — rely on the constraint + `exception when unique_violation`, not a check-then-insert), `token_balance`, `reserve_tokens` (atomic **all-or-nothing**; draws allowance/trial first then earliest expiry; records per-grant `draws`; raises→rolls back if it can't fully cover), `settle_reservation` (refunds the unused reserve to the **original** grants so allowance can't leak into permanent tokens), `refund_reservation`, `sweep_stale_reservations`.
+- `src/lib/tokenWallet.ts`: `getBalance / reserveTokens / settle / refund / grantTokens`; schedule the `sweep_stale_reservations` job (every few min — crash safety).
+- Metered routes: `reserveTokens(per-feature cap, ref)` — **the web can't estimate the engine's input (the engine builds the prompt), so reserve a conservative per-feature cap**, not an input estimate → `402 insufficient_tokens` if `-1`; `settle(ref, actual)` from `usage.total_tokens`; `refund(ref)` on engine error/refusal; `logAiUsage(billed_tokens=actual)`.
+- **Phase 3 (separate, later): BYOK** — `byok_keys` + app-side encryption; engine accepts a forwarded key; BYOK usage logged but not deducted. Do **not** build it into Phase 2.
 - Grants: `writeGrant` also `grantTokens(allowance = plan.aiTokens, expiresAt = tier window, ref="tier:"+sku)`; top-up pack `checkout.session.completed` ⇒ `grantTokens(purchased, now+12mo, ref="stripe:"+event.id)`.
 - Config: `aiTokens` per plan + `tokenPacks` (TODO numbers). Checkout accepts pack ids (one-time `payment`, Stripe Tax for VAT).
 - UI: `useTokenBalance()` hook; balance by `TierBadge`; **allowance pie + "Top up"** in `AssistantDrawer` footer (it already shows `sessionCost`); pre-submit "~N tokens" in `DescribeProjectDialog`/`ExportDialog`; usage-history view (read-own `ai_usage_log`); top-up modal (pattern `UpgradeModal`); `tokens` i18n group in all four `messages/*.json`.
