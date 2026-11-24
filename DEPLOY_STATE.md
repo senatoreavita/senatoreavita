@@ -96,5 +96,14 @@ through the running app, not curl.)
 - [ ] Backups (PITR) on + one restore drill — Supabase is on **FREE** (no backups/PITR). **Deferred to 1 Dec** (owner is aligning all paid subscriptions to that date), then upgrade to **Pro**. Interim risk: no recovery if data is lost before then — take at least one manual `pg_dump` snapshot before real testers store plans (see `BACKUPS.md`).
 - [ ] Invite-only enforcement (Auth signup settings + app-side beta gate).
 
+## AI token metering — Phase 1 (measurement layer)
+Spec: `AI_TOKEN_BILLING.md`. **Measurement only — no wallet, no balance, no blocking.** Phase 2 (reservations/top-ups/Stripe packs) is a separate build behind the `AI_METERING_ENABLED` kill-switch.
+- **Engine** (`startuplan-core` branch `session_2026_11_24`, commit `4e7d516`): single price table `core/ai/pricing.py` (`PRICES_VERIFIED=2026-11-24`) + one `core/ai/llm.py` seam; all AI call sites route through it; every AI endpoint returns `usage` (`/extract`, `/guided/next`, `/plan/assistant`) or an `X-AI-Usage` response header (`/plan/export`, binary). Full suite **1433 passed / 4 skipped**.
+- **Web** (`StartUPlan_Web` branch `dashboard_2026_11_24`, commit `5d46d5c`): `src/lib/aiUsage.ts` fail-open logger wired into all four AI routes; **56 web tests** + typecheck + lint green.
+- **Supabase migrations applied to prod via SQL editor (2026-11-24, both success):**
+  - `20261124120000_ai_usage_log.sql` — COGS ledger. RLS-on, single read-own SELECT policy → **service-role-write-only**. Stores token counts + model + `cost_usd` only — **never prompt/response text** (privacy).
+  - `20261124121000_ai_cogs_rollups.sql` — read-only views `ai_cogs_daily` / `ai_cogs_by_feature` / `ai_cogs_by_model` / `ai_cogs_by_user`, all `security_invoker = true` (honour the table's RLS: service role sees all, a user sees only their own).
+- **Not yet deployed:** the two branches are pushed but **not merged/redeployed to Cloud Run**. Rows start accruing in `ai_usage_log` only once the engine + web are redeployed from these commits and a real AI action runs. After redeploy, watch COGS with `select * from public.ai_cogs_by_feature;`.
+
 ## Redeploy cheatsheet
 Full walkthrough: `DEPLOY_QUICKSTART.md`. Reference: `DEPLOY_CLOUD_RUN.md`.
