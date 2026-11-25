@@ -179,8 +179,9 @@ generation + verification end-to-end before the intake and full section set.
 - [x] 2. **Per-section generators** (`core/report/sections.py`, `generate.py`) — 5 engine-driven sections, deterministic drafts grounded in the facts, optional AI polish via `core.ai.llm` (metered), fail-closed to the draft. (9 tests)
 - [x] 3. **Verifier** (`core/report/verify.py`) — number reconciliation (no invented figures), section presence, repayment sentence, Sources = Uses, Open Items; PASS/FAIL + bankable flag. (8 tests)
 - [x] 5. **Renderer** (`core/exports/pdf/bankable.py`) — `build_bankable_pdf()` runs facts → generate → verify → render in the **Lender skin**, reusing the standard plan's cover/furniture/statement tables. Renders the 5 engine-driven sections with their evidence (KPI cards, revenue/EBITDA/net chart, funding table + pie, 3 statements + cash line, coverage/leverage table, **new DSCR-vs-covenant chart**, cash profile), a VERIFIED/DRAFT status banner, and a Verification & Open Items page. Thin plans degrade safely. Returns a recordable PASS/FAIL report. (6 tests; 80 existing PDF tests still pass.)
+- [x] **Scenario & Risk (§11)** (`core/report/risk.py`) — scenarios (base/upside/downside), one-way sensitivity (tornado + switching values) and Monte Carlo (P(NPV>0), P10/P50/P90, critical drivers) run and are rendered: a scenario-comparison table, the **Tornado chart**, and a Monte Carlo panel + histogram. All grounded (new fact groups) and verified (zero strays). MC ranges derived from the model's material sensitivity levers (PERT, LHS, fixed seed) — a disclosed methodology, footnoted in the PDF. `include_risk` on by default, skippable. (6 risk tests + 2 renderer tests.)
 - [ ] 4. Founder intake (unlocks the non-engine sections → full 14-section layout) · [ ] 6. Wire behind tier · [ ] 7. Phase-3 research
-- [ ] Charts: DSCR-vs-covenant + Sources & Uses + revenue/cash shipped; **CFADS-vs-debt-service** and **Tornado** await sensitivity-series wiring.
+- [ ] Charts: DSCR-vs-covenant + Sources & Uses + revenue/cash + **Tornado** + **MC histogram** shipped; **CFADS-vs-debt-service** optional (not critical for SME term loans).
 
 ---
 
