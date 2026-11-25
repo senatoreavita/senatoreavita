@@ -24,8 +24,12 @@ The equity/IC-memo build is **not scheduled**. Rationale: StartUPlan's SME users
 mostly via **loans + grants**, not priced equity; the sections that make an investor memo
 credible (traction, cohorts, cap-table/dilution waterfalls, MOIC/IRR, sourced exit comps)
 need modelling + founder data the tool can't reliably supply, and auto-generating them is a
-**credibility liability**. The existing **Investor skin (Direction A) + PPTX pitch deck**
-already serve the early-investor conversation. Revisit only on real user demand.
+**credibility liability**. The **PPTX pitch deck** already serves the early-investor conversation.
+
+**Consequence (done):** the user-facing **Investor/Lender PDF toggle was removed** — there is
+one business-plan PDF, the **bankable (Lender) plan**. The engine *keeps* its two-skin
+capability (defaults to the Lender/institutional skin), so an investor-styled PDF can be
+re-surfaced later without rework; it is simply not offered in the UI today.
 
 ## 1. Non-negotiables (from the prompt, enforced as code)
 
@@ -127,14 +131,21 @@ All computable from the engine today:
 3. **Sources & Uses** (✓) · 4. **Tornado** (sensitivities ✓). Optional: debt profile, cumulative
 cash / funding gap, EBITDA bridge. Rendered in the Lender skin's chart language (`charts.py`).
 
-## 8. Phase 3 — cited market research (upper tier)
+## 8. Phase 3 — market research as a separate, opt-in feature
 
-Replaces the §4/§5 founder stubs with **grounded** market/competitor data:
-- **Grounded web search** → candidate facts (TAM/SAM/SOM, growth, competitors, price evidence, exit comps).
-- **Verify every citation** — fetch each source, confirm the figure is actually there; **drop any
+A **distinct feature**, not part of the base plan. It activates **only when the founder provides
+no market research** of their own (§4/§5 left empty), and never overrides founder-supplied data.
+
+- **Trigger:** founder opts in **and** has supplied no market/competition inputs → the feature
+  runs; otherwise it does nothing.
+- **Grounded web search** → candidate facts (market size & growth, competitors, price evidence).
+- **Verify every source** — fetch each one, confirm the figure is actually present; **drop any
   claim whose source can't be verified**. Never a model-recalled "reference".
-- Each surviving fact carries **value · unit · source URL · date**; rendered as footnoted citations.
-- **Gated to upper tiers** (cost + abuse); metered. Fail-open to founder-input stubs.
+- **Output:** a short, sober **summary** of what serious sources say, with **the source links in
+  footnotes** (each fact: value · unit · source URL · date). It reads as *"according to [source],
+  the market is …"* — clearly attributed, never presented as the founder's own primary research.
+- **Gated** (cost + abuse) and **metered**. Fail-open: if nothing verifiable is found, the section
+  stays a founder stub + Open Item, rather than inventing anything.
 
 ## 9. Safety / efficiency / professionalism — how each is met
 
