@@ -174,6 +174,12 @@ no market research** of their own (§4/§5 left empty), and never overrides foun
 **First slice:** steps 1–3 over the **engine-driven sections** — proves grounding + per-section
 generation + verification end-to-end before the intake and full section set.
 
+**Status (2026-11-25): first slice COMPLETE** — shipped on `startuplan-core@session_2026_11_25`:
+- [x] 1. **FactsContract** (`core/report/facts.py`) — 41 pre-formatted grounded facts; prompt block + verifier whitelist. (5 tests)
+- [x] 2. **Per-section generators** (`core/report/sections.py`, `generate.py`) — 5 engine-driven sections, deterministic drafts grounded in the facts, optional AI polish via `core.ai.llm` (metered), fail-closed to the draft. (9 tests)
+- [x] 3. **Verifier** (`core/report/verify.py`) — number reconciliation (no invented figures), section presence, repayment sentence, Sources = Uses, Open Items; PASS/FAIL + bankable flag. (8 tests)
+- [ ] 4. Founder intake · [ ] 5. Renderer (Lender skin → 14 sections + charts) · [ ] 6. Wire behind tier · [ ] 7. Phase-3 research
+
 ---
 
 *Companion specs: `AI_TOKEN_BILLING.md` (metering, shipped), `BUSINESS_PLAN_PDF.md` (the two
