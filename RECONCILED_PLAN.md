@@ -19,6 +19,21 @@ cited research**, **multilingual**, and a **working project assistant**. Several
 
 ---
 
+## 0a. Corrections (2026-11-25, re-verified against live code)
+
+An earlier cut of this plan mis-stated two items; corrected here and below:
+
+- **AI token billing was omitted entirely.** **Phase 1 (Measure) is DONE** — `pricing.py`
+  (OpenAI + Anthropic + cache), the `llm.py` wrapper, all call sites routed, `ai_usage_log` +
+  `ai_cogs_rollups` migrations, `aiUsage.ts` + `logAiUsage` in the AI routes, tests. **Phase 2
+  (wallet/enforcement/top-up) is pending.** Added as **G10** below. (The assistant's cost chip
+  is Phase-1 metering.)
+- **Founder intake is not a flat gap.** The **engine scaffolding is DONE** (`core/report/founder.py`,
+  `founder_sections.py`, FounderInputs + stub-aware sections + the 14-section layout); only the
+  **web bankable-intake UI** is pending. G1 reworded accordingly.
+- The assistant's "metering" = billing **Phase 1 (done)**; its **caps/enforcement = billing
+  Phase 2 (pending)** — the *same* work as G10 P2.13, not a separate build.
+
 ## 1. Decisions already recorded (do not re-open)
 
 - **Equity / Investor plan (plan Phase 2) — deferred by decision** (`BANKABLE_PLAN_SPEC §0b`).
@@ -42,7 +57,9 @@ These trim the ambitious target prompt to what StartUPlan ships for its SME-lend
 | Annexes A–G (loan, revenue, costs, assets, TV, cap table, WC) | ✅ Done | `core/exports/pdf/annexes.py` |
 | KPI consistency across surfaces | ✅ Hardened today | one resolver + view contract |
 | Charts: DSCR-vs-covenant, Tornado, Rev/EBITDA, MC, cash line | ✅ Done | `core/exports/pdf/charts.py` |
-| Founder sections 2, 3, 6, 7, 13, 14 | ❌ Gap (omitted) | needs founder intake |
+| Founder sections 2, 3, 6, 7, 13, 14 | ◑ Engine scaffolded; omitted pending **web intake** | `founder.py`, `founder_sections.py` |
+| AI token metering (per-call cost, logging) | ✅ Done (billing Phase 1) | `pricing.py`, `llm.py`, `aiUsage.ts`, `ai_usage_log` |
+| AI token **wallet / enforcement / top-up** | ❌ Gap (billing Phase 2) | — |
 | Market §4 / Competitive §5 | ❌ Gap | founder or Phase-3 research |
 | §12 Risk register (table) | ◑ Partial (narrative draft only) | `_risks` draft |
 | 4th scenario "Severe stress" | ❌ Gap (Base/Up/Down only) | `scenario_spec.py` |
@@ -60,9 +77,10 @@ These trim the ambitious target prompt to what StartUPlan ships for its SME-lend
 
 ## 3. Reconciled gap list (grouped)
 
-- **G1 — Founder intake (keystone).** Unlocks 8 sections (2,3,4,5,6,7,13,14). Collects inputs with
-  *value·unit·source·date*; absent → stub + Open Item. Largest new user-facing surface; gates how
-  "complete" a plan can be. **[L]**
+- **G1 — Founder intake WEB UI (keystone).** Engine side **DONE** (FounderInputs + stub-aware
+  sections + 14-section layout); the **web collection UI** is what remains — collect §2/3/6/7/13/14
+  inputs with *value·unit·source·date*, absent → stub + Open Item. Largest remaining user-facing
+  surface; gates how "complete" a plan can be. **[M–L]** (was [L]; engine half already built)
 - **G2 — §12 Risk register** (table grounded on engine sensitivities; narrative draft exists). **[M]**
 - **G3 — §9/§11 financial depth:** 4th "Severe stress" scenario · CFADS waterfall table · FCFF/FCFE
   labelling + Project-vs-Equity IRR · per-driver break-even sentences vs covenant · two-way DSCR
@@ -83,6 +101,13 @@ These trim the ambitious target prompt to what StartUPlan ships for its SME-lend
 - **G8 — Inline "in plain words" callouts** beside charts (explainer guide PDF already ships). **[S–M]**
 - **G9 — Deploy-safety guards** (SHA stamp + cloudbuild `tag==HEAD` assert) + payback wording.
   *(started — see §5)* **[S]**
+- **G10 — AI token billing.** **Phase 1 (Measure) DONE** (pricing/wrapper/logging/`ai_usage_log`).
+  **Phase 2 (Enforce) pending:** wallet tables + RPCs (`token_grants`/`token_ledger`/`token_reservations`,
+  grant/balance/reserve/settle/refund/sweep) · `tokenWallet.ts` + sweep job · reserve→settle in metered
+  routes behind `AI_METERING_ENABLED` (= the assistant's caps) · allowance-grant on purchase · Stripe
+  top-up packs · config numbers · balance/pie/history/top-up UI + `tokens` i18n ×4 · admin COGS + spike
+  alert · staging → flip the kill-switch. Two Phase-1 decision steps remain: **measure real COGS** and
+  **set the pricing numbers** (allowance/packs/markup). **BYOK = Phase 3, deferred.** **[L]**
 
 **Engine-readiness note:** the engine already computes almost everything the prompt's KPI/chart
 sections need (CFADS, DSCR series, ICR, leverage, liquidity, cap table — `BANKABLE_PLAN_SPEC §3`),
@@ -100,21 +125,27 @@ parallel with the intake work.
 | 2 | **G1** founder intake | keystone — unlocks 8 sections | L |
 | 3 | **G2 + G3** risk register + financial depth | engine data ready; makes it bank-grade | M–L |
 | 4 | **G4** remaining charts | pairs with G3 | M |
-| 5 | **G7-C2/C3/C4** assistant edits + multilingual + caps | builds on C1 | M |
+| 5 | **G7-C2/C3** assistant edits + multilingual answers | builds on C1 | M |
 | 6 | **G6** multilingual plan (shared locale layer) | shares infra with G7-C3 | M–L |
-| 7 | **G8** inline callouts | polish once content settles | S–M |
-| 8 | **G5** Phase-3 market research | opt-in upper tier; last | L |
+| 7 | **G10** billing Phase 2 (wallet/enforce/top-up) — incl. the assistant's caps (P2.13) | monetisation; kill-switched; do after core features | L |
+| 8 | **G8** inline callouts | polish once content settles | S–M |
+| 9 | **G5** Phase-3 market research | opt-in upper tier; last | L |
+
+*Near-term decision (not a build): **set the billing pricing numbers** (allowance/packs/markup)
+from the Phase-1 COGS data — do this once real usage has accrued, before turning Phase 2 on.*
 
 **Dependencies:** G1 gates sections 2–7/13/14 and Phase-3 (G5). G6 and G7-C3 share one locale layer
 — build once. G3/G4 are engine-data-ready now (no intake needed) → parallelisable with G1.
 
 ---
 
-## 5. In progress (this session)
+## 5. Shipped this session
 
-- **Item 0 (G9):** cloudbuild `tag==HEAD` guard; `NEXT_PUBLIC_BUILD_SHA` stamp; payback wording
-  alignment (PDF "Year 8" vs Excel "7").
-- **Item 1 (G7-C1):** enrich `core/ai/assistant.py build_facts()` with per-year series + formatted
-  figures + bounded arrays; test that the assistant can answer a year-level question.
-
-Each lands on its repo's session branch with tests; the deploy guards ship with the next web build.
+- **Item 1 (G7-C1) ✅** `build_facts()` enriched with per-year series (cash flow, cumulative,
+  revenue, EBITDA, net income, DSCR) + money-formatting instruction + test. `startuplan-core@d171f59`.
+- **Item 0 (G9) ✅ (partial)** `NEXT_PUBLIC_BUILD_SHA` stamp → shown in Settings; cloudbuild requires
+  `_GIT_SHA` (no build without provenance). `StartUPlan_Web@0dc928f` + deploy doc. **Remaining:**
+  payback "Year 8 vs 7" is an **Excel-formula** off-by-one (engine/dashboard/PDF agree on 8), folded
+  into the G3 financial-depth/parity pass.
+- Both need a redeploy to go live (engine for the assistant; web rebuild — now with `_GIT_SHA` — for
+  the Settings stamp).
