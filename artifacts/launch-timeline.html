@@ -167,7 +167,7 @@
 <script>
 const LAUNCH = new Date('2026-12-15T00:00:00');
 // REMINDER: bump UPDATED to the current UTC time on EVERY edit/republish of this timeline.
-const UPDATED = '2026-11-23T17:23:26Z';
+const UPDATED = '2026-11-25T21:56:24Z';
 // Week columns — Monday-aligned, Mon–Fri working weeks. Wk1 = Mon 5 Oct. The apps
 // are code-complete; wk 8 (Mon 23 Nov) is now the active DEPLOY week, with a private
 // invite-only beta pulled forward to wk 9 and the public launch holding at 15 Dec (Wk11).
@@ -205,6 +205,21 @@ const ROWS = [
   {t:'Download / save a selected Monte Carlo case → Excel built on that case ✓ done', s:1, n:1, c:'done'},
   {t:'Excel Risk Assessment page — static MC/sensitivity charts, fed by UI result (no re-run)', s:10, n:2, c:'std'},
   {t:'Unit Economics (CAC/LTV/ARPU) — removed from launch scope · engine+web clean-delete, logic kept as a note ✓ done', s:3, n:1, c:'done'},
+
+  {g:'Bankable business plan — bank / DFI grade (23–25 Nov)'},
+  {t:'Scenario consistency — ONE resolver (resolve_definitions / resolve_scenario_config) + a named view contract so EVERY engine value (not just NPV/IRR) is identical across dashboard, Excel and PDF; parity tests guard the build ✓ done', s:8, n:1, c:'done'},
+  {t:'Bankable PDF fixes — Monte Carlo at 10,000 trials · tornado shows ALL levers · cash-flow tables added incl. financing · FCF laid out in the app’s outflow→inflow order; deployed Downside −€27,685,436 now matches Excel + dashboard ✓ done', s:8, n:1, c:'done'},
+  {t:'Project Assistant grounding — build_facts enriched with per-year series (revenue · EBITDA · net income · FCF · cumulative CF · DSCR · calendar years) + currency formatting so it answers year-by-year, still fail-closed ✓ done (needs an engine redeploy to go live)', s:8, n:1, c:'done'},
+  {t:'AI token billing Phase 1 (Measure) — per-call cost pricing (OpenAI + Anthropic + cache), llm.py wrapper on every call site, ai_usage_log + rollups, aiUsage logging ✓ done', s:8, n:1, c:'done'},
+  {t:'Deploy-safety guard — web bakes NEXT_PUBLIC_BUILD_SHA (shown in Settings) + cloudbuild requires _GIT_SHA so no image ships without provenance; _25 branches merged to main, deploys now go from main ✓ done', s:8, n:1, c:'done'},
+  {t:'Redeploy engine + web — ship the assistant facts enrichment (engine) and the build-SHA stamp (web, now needs _GIT_SHA) to staging', s:9, n:1, c:'high'},
+  {t:'Founder intake WEB UI (keystone) — collect §2/3/6/7/13/14 inputs (value·unit·source·date), absent → stub + Open Item; unlocks the 8 narrative sections (engine scaffolding already done)', s:9, n:2, c:'high'},
+  {t:'Bankable financial depth — §12 risk-register table · 4th “Severe stress” scenario · CFADS waterfall · FCFF/FCFE + Project-vs-Equity IRR labelling · two-way DSCR matrix · Assumptions Book + Glossary · surface Equity IRR/LTV/DSRA · Excel payback off-by-one (mostly rendering — engine already computes these)', s:9, n:2, c:'high'},
+  {t:'Bankable charts — EBITDA bridge · spider / break-even · cumulative-cash trough · debt profile · two-way heatmap', s:10, n:1, c:'std'},
+  {t:'Multilingual business plan (EN / FR / UA / IT) — shared locale layer → chrome translation → AI prose polish (polish_narrative) → locale number/date formatting', s:10, n:2, c:'high'},
+  {t:'Assistant edits + multilingual answers — enable whitelist-validated model-change proposals (Apply → recompute) + any-language replies on the enriched facts', s:10, n:1, c:'std'},
+  {t:'AI token billing Phase 2 (Enforce) — wallet (token_grants / ledger / reservations) + reserve→settle in metered routes behind AI_METERING_ENABLED (= the assistant’s caps) · Stripe top-up packs · balance/history UI + i18n · admin COGS + spike alert; first set the pricing numbers from Phase-1 COGS', s:10, n:2, c:'high'},
+  {t:'Phase-3 cited market research (§4/§5) — opt-in, grounded web search, every source verified + metered, fail-open to stub', s:11, n:1, c:'std'},
 
   {g:'Deploy & private beta — the only gap to letting people in (now)'},
   {t:'Engine → FastAPI container — Dockerfile swapped to uvicorn service.api:app; Streamlit removed from the engine; /health live ✓ done', s:8, n:1, c:'done'},

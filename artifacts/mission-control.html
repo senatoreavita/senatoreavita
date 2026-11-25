@@ -154,7 +154,7 @@
 <main class="wrap">
 
   <section class="block">
-    <div class="section-title">This week — wk 7 (20 Nov)</div>
+    <div class="section-title">This week — wk 8 (23 Nov)</div>
     <div class="week">
       <ol>
         <li><b>Phone, iPad &amp; web dashboards — polish complete ✓.</b> Device-class layouts (purpose-built iPhone shell · iPad TabletLayout · desktop build tool), full phone↔web i18n convergence (shared keys across all four locales, an in-place language switch that keeps the current view + open sheet, aria-labels routed through the same keys), unified number formatters + chart geometry, and per-metric parity so phone and web read the same engine DTO and never recompute. <span class="tag ok">apps ready</span></li>
@@ -163,6 +163,7 @@
         <li><b>Payments — built in Stripe test mode ✓.</b> Checkout → webhook → <code>tier_grants</code>, cancel/manage portal, upgrade credit and a country-aware VAT preview all work end-to-end on test keys. With the entity + VAT now done, go-live needs only the bank account + swapping test→live keys. <span class="tag ok">test mode done</span></li>
         <li><b>Email stack live ✓ · Supabase RLS baseline + drift-guard CI ✓.</b> Inbound forwarding (Cloudflare) + outbound auth/transactional via Resend; every table RLS-on + owner-scoped with a build-failing drift test. Pre-launch RLS re-audit on prod is still the go/no-go gate.</li>
         <li><b>Deployed ✓ (23 Nov):</b> engine + web are live on a private Cloud Run (staging) — sign-in and a full Monte Carlo compute verified end-to-end through the ID-token engine door. <b>Next up:</b> the pre-beta gates — RLS re-audit on prod, provider spend caps, backups on, invite-only — then invite testers. See <code>DEPLOY_STATE.md</code>. <span class="tag ok">staging live</span></li>
+        <li><b>Bankable plan hardened ✓ (25 Nov).</b> One scenario resolver + a named view contract now make <b>every</b> engine value identical across dashboard, Excel and PDF (parity-tested); the PDF Downside −€27,685,436 matches Excel/dashboard. Bankable PDF fixed — 10,000 Monte Carlo trials, all-lever tornado, cash-flow tables incl. financing in the app’s order. The Project Assistant was grounded with per-year series, and AI token-billing Phase 1 (cost measurement) landed. <b>Still to ship before launch:</b> founder intake UI, bankable financial depth + charts, multilingual, assistant edits, billing Phase 2 — then a redeploy. <span class="tag ok">consistency done</span></li>
       </ol>
     </div>
   </section>
@@ -200,7 +201,7 @@
 
 <script>
 const LAUNCH = new Date('2026-12-15T00:00:00');
-const LAST_UPDATED = '2026-11-23T16:52:00Z';  // exact instant; rendered in the viewer's local time
+const LAST_UPDATED = '2026-11-25T21:56:24Z';  // exact instant; rendered in the viewer's local time
 function fmtUpdated(iso){
   try{
     const d = new Date(iso);
