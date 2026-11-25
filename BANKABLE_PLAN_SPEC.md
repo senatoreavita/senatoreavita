@@ -178,7 +178,9 @@ generation + verification end-to-end before the intake and full section set.
 - [x] 1. **FactsContract** (`core/report/facts.py`) — 41 pre-formatted grounded facts; prompt block + verifier whitelist. (5 tests)
 - [x] 2. **Per-section generators** (`core/report/sections.py`, `generate.py`) — 5 engine-driven sections, deterministic drafts grounded in the facts, optional AI polish via `core.ai.llm` (metered), fail-closed to the draft. (9 tests)
 - [x] 3. **Verifier** (`core/report/verify.py`) — number reconciliation (no invented figures), section presence, repayment sentence, Sources = Uses, Open Items; PASS/FAIL + bankable flag. (8 tests)
-- [ ] 4. Founder intake · [ ] 5. Renderer (Lender skin → 14 sections + charts) · [ ] 6. Wire behind tier · [ ] 7. Phase-3 research
+- [x] 5. **Renderer** (`core/exports/pdf/bankable.py`) — `build_bankable_pdf()` runs facts → generate → verify → render in the **Lender skin**, reusing the standard plan's cover/furniture/statement tables. Renders the 5 engine-driven sections with their evidence (KPI cards, revenue/EBITDA/net chart, funding table + pie, 3 statements + cash line, coverage/leverage table, **new DSCR-vs-covenant chart**, cash profile), a VERIFIED/DRAFT status banner, and a Verification & Open Items page. Thin plans degrade safely. Returns a recordable PASS/FAIL report. (6 tests; 80 existing PDF tests still pass.)
+- [ ] 4. Founder intake (unlocks the non-engine sections → full 14-section layout) · [ ] 6. Wire behind tier · [ ] 7. Phase-3 research
+- [ ] Charts: DSCR-vs-covenant + Sources & Uses + revenue/cash shipped; **CFADS-vs-debt-service** and **Tornado** await sensitivity-series wiring.
 
 ---
 
