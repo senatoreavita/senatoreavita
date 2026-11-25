@@ -146,12 +146,16 @@ TAG=$(git rev-parse --short HEAD)
 gcloud builds submit --config cloudbuild.yaml \
   --substitutions=\
 _IMAGE=europe-west1-docker.pkg.dev/startuplan-prod/startuplan/web:$TAG,\
+_GIT_SHA=$TAG,\
 _SUPABASE_URL=https://XXXX.supabase.co,\
 _SUPABASE_ANON_KEY=eyJ...,\
 _SITE_URL=https://<web-url>,\
 _TURNSTILE_SITE_KEY=0x...,\
 _API_URL=https://<web-url>
 # optional (defaults shown): _OAUTH_GOOGLE=true _OAUTH_APPLE=false _TRIAL_UPGRADES=false
+# _GIT_SHA is REQUIRED (the build fails without it). It stamps the deployed commit
+# into the app — check it in Settings ("build <sha>") after deploy to confirm the
+# live code matches `git rev-parse --short HEAD`.
 ```
 > All of these are **PUBLIC** values — safe as substitutions. The real secrets (service-role
 > key, Stripe, Turnstile *secret*) go in at deploy (step 5) via `--set-secrets`, never baked
