@@ -1,6 +1,6 @@
 # Sprint — apps code-complete ✓ · now DEPLOY
 
-**Updated:** 26 Nov 2026 · 07:49 UTC
+**Updated:** 26 Nov 2026 · 17:30 UTC
 
 **Deployed ✓ (23 Nov):** engine + web are live on a private Cloud Run (staging) and
 **validated end-to-end** — sign-in + a full **Monte Carlo compute** through the ID-token
@@ -36,6 +36,46 @@ question, and the remaining quality-hardening items remain on the engine.
 **Optional parallel:** provision the Google Cloud runway — see `INFRA.md`.
 
 Item numbers (#) map to the original task list.
+
+---
+
+## 26 Nov — Founder intake (G1) web UI **done** (core `session_2026_11_26` · web `dashboard_2026_11_26`)
+
+**G1 — the keystone founder-intake UI — is complete** (manual entry + AI-improve).
+Built, tested and committed **locally on both branches**; **not pushed/deployed** (holding
+on the GitHub Actions budget). The AI-**research-generate** path + sources annex is split
+out as **G5 (deferred)**, so G1 stands on its own.
+
+### Done ✓
+- [x] **Founder intake — 8 narrative sections, all optional (absent → stub + Open Item).**
+      Six plain-text sections (company · project · operations · management · security · ESG)
+      with `TextField`/`TextAreaField` primitives (blank⇄undefined, edit-lock aware);
+      management-**team** and security-**collateral** `RowList` editors (stable ids). Section
+      registered in the dashboard (registry / subnav / dispatcher), full EN/FR/UA/IT i18n.
+      Data chain web `FounderInputs` → `project_inputs.founder_inputs` jsonb → top-level
+      `founder` on export → `FounderInputs.from_dict` → bankable PDF.
+- [x] **Market & Competition — big editable prose chapters, Bankable-gated.** Reworked from
+      the rejected cited-fact grid into one prose box each. New entitlement
+      `market_competition` (contract **v7**, byte-identical both repos), **enforced
+      server-side** on `/plan/export` (stripped below Bankable), not just in the UI.
+- [x] **"Improve with AI" on every narrative prose box.** New engine `POST /plan/polish`
+      (token+tier gated at the export floor, reuses `polish_narrative`, metered, degrades to
+      `text:null` — never 500); metered web `/api/polish` (rate-limit + daily budget, feature
+      `narrative`); reusable `ImproveableTextArea` (button + one-click **Undo** + graceful
+      error + paid-tier gate). `plan_writer` now accepts a resolved language **name** (fixes
+      Italian, which has no engine slot).
+- [x] **Tests green.** Web **563/563** (new FounderSection + ImproveableTextArea suites),
+      engine entitlement + polish + founder + bankable-PDF suites green; tsc + lint clean.
+
+### Deferred → G5 (not blocking G1)
+- [ ] **"Generate with AI research" (§4/§5)** — AI-written Market/Competition chapters from a
+      sector/country research pass → prose **+ a sources box (http links)** → a new **PDF
+      Sources Annex** + sector-research cache + token pricing. (Folds in the old "Phase-3
+      cited market research" item.)
+
+### To activate G1 (when pushes resume)
+- [ ] Push `dashboard_2026_11_26` + `session_2026_11_26` → run the `founder_inputs` Supabase
+      migration → redeploy engine + web.
 
 ---
 
@@ -75,10 +115,9 @@ hygiene: the `_25` branches were merged to **main** and deploys now go from main
 ### Next — before final deployment
 - [ ] **Redeploy engine + web** to ship the assistant facts enrichment (engine) and the
       build-SHA stamp (web — now needs `_GIT_SHA`) to staging.
-- [ ] **Founder intake WEB UI (keystone)** — collect §2/3/6/7/13/14 inputs
-      (value·unit·source·date), absent → stub + Open Item; unlocks the 8 narrative
-      sections. Engine scaffolding (`core/report/founder.py`, `founder_sections.py`)
-      already done.
+- [x] **Founder intake WEB UI (keystone · G1)** — collect §2/3/6/7/13/14 inputs, absent →
+      stub + Open Item; unlocks the 8 narrative sections. **Done (manual + AI-improve) 26 Nov
+      — see the 26 Nov section.** AI research-generate split to G5.
 - [ ] **Bankable financial depth** — §12 risk-register table · 4th "Severe stress"
       scenario · CFADS waterfall · FCFF/FCFE + Project-vs-Equity IRR labelling · two-way
       DSCR matrix · Assumptions Book + Glossary · surface Equity IRR / LTV / DSRA · the
