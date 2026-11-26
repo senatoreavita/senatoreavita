@@ -1,6 +1,6 @@
 # Sprint — apps code-complete ✓ · now DEPLOY
 
-**Updated:** 23 Nov 2026 · 16:52 UTC
+**Updated:** 26 Nov 2026 · 07:49 UTC
 
 **Deployed ✓ (23 Nov):** engine + web are live on a private Cloud Run (staging) and
 **validated end-to-end** — sign-in + a full **Monte Carlo compute** through the ID-token
@@ -36,6 +36,70 @@ question, and the remaining quality-hardening items remain on the engine.
 **Optional parallel:** provision the Google Cloud runway — see `INFRA.md`.
 
 Item numbers (#) map to the original task list.
+
+---
+
+## 25 Nov — Bankable plan consistency + assistant grounding + billing Phase 1 (core `session_2026_11_26` · web `dashboard_2026_11_26`)
+
+Hardened the bankable business plan so **no engine value can diverge across surfaces**,
+fixed the bankable PDF, grounded the assistant, and landed AI-cost measurement. Branch
+hygiene: the `_25` branches were merged to **main** and deploys now go from main.
+
+### Done ✓
+- [x] **Scenario consistency — one source of truth for every value.** A single
+      resolver (`resolve_definitions` / `resolve_scenario_config` in
+      `scenario_spec.py`) + a named **view contract** (`build_view_contract`) so the
+      dashboard, Excel and PDF all read the same DTO — not just NPV/IRR, **every**
+      computed value. Parity tests (`test_scenario_resolver_parity`,
+      `test_view_contract_parity`) fail the build on a divergence.
+- [x] **Bankable PDF fixes.** Monte Carlo at **10,000 trials** (was 4,000); tornado
+      shows **all levers** (was top 6); the two missing **cash-flow tables** added
+      (incl. a Cash Flow with Financing block); the free-cash-flow table laid out in
+      the **app's outflow→inflow order**. Levers now thread UI→engine→PDF, so the
+      deployed **Downside −€27,685,436 matches Excel + dashboard**.
+- [x] **Project Assistant grounding.** `build_facts()` enriched with per-year series
+      (revenue · EBITDA · net income · FCF · cumulative CF · net cash flow · DSCR ·
+      calendar years) + a currency-formatting instruction, so it answers year-by-year
+      questions and stays fail-closed. `startuplan-core@d171f59` + test.
+      **Needs an engine redeploy to go live.**
+- [x] **AI token billing — Phase 1 (Measure).** Per-call cost pricing (OpenAI +
+      Anthropic + cache), a `llm.py` wrapper on every call site, `ai_usage_log` +
+      `ai_cogs_rollups` migrations, `aiUsage.ts` + `logAiUsage` in the AI routes, tests.
+      *(Phase 2 = wallet/enforcement/top-up, pending — see below.)*
+- [x] **Deploy-safety guard.** The web bakes `NEXT_PUBLIC_BUILD_SHA` (shown in
+      Settings) and `cloudbuild.yaml` now **requires `_GIT_SHA`**, so no image ships
+      without provenance (this killed a stale-bundle hour). `StartUPlan_Web@0dc928f`.
+- [x] **Branch hygiene.** `session_2026_11_25` / `dashboard_2026_11_25` fast-forwarded
+      to **main** in both repos; tomorrow's `_2026_11_26` branches cut from main.
+
+### Next — before final deployment
+- [ ] **Redeploy engine + web** to ship the assistant facts enrichment (engine) and the
+      build-SHA stamp (web — now needs `_GIT_SHA`) to staging.
+- [ ] **Founder intake WEB UI (keystone)** — collect §2/3/6/7/13/14 inputs
+      (value·unit·source·date), absent → stub + Open Item; unlocks the 8 narrative
+      sections. Engine scaffolding (`core/report/founder.py`, `founder_sections.py`)
+      already done.
+- [ ] **Bankable financial depth** — §12 risk-register table · 4th "Severe stress"
+      scenario · CFADS waterfall · FCFF/FCFE + Project-vs-Equity IRR labelling · two-way
+      DSCR matrix · Assumptions Book + Glossary · surface Equity IRR / LTV / DSRA · the
+      Excel **payback off-by-one** (engine/dashboard/PDF already agree on 8). Mostly
+      rendering — the engine already computes these.
+- [ ] **Bankable charts** — EBITDA bridge · spider / break-even · cumulative-cash
+      trough · debt profile · two-way heatmap.
+- [ ] **Multilingual business plan (EN/FR/UA/IT)** — shared locale layer → chrome
+      translation → AI prose polish (`polish_narrative`) → locale number/date formatting.
+- [ ] **Assistant edits + multilingual answers** — enable whitelist-validated
+      model-change proposals (Apply → recompute) + any-language replies on the enriched
+      facts.
+- [ ] **AI token billing — Phase 2 (Enforce)** — wallet
+      (`token_grants`/`token_ledger`/`token_reservations`) + reserve→settle in metered
+      routes behind `AI_METERING_ENABLED` (= the assistant's caps) · Stripe top-up packs
+      · balance/history UI + `tokens` i18n ×4 · admin COGS + spike alert. First **set the
+      pricing numbers** (allowance/packs/markup) from the Phase-1 COGS data.
+- [ ] **Phase-3 cited market research (§4/§5)** — opt-in, grounded web search, every
+      source verified + metered, fail-open to stub.
+
+*Full reconciliation in `RECONCILED_PLAN.md`.*
 
 ---
 
